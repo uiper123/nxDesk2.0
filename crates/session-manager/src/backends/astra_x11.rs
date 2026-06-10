@@ -17,6 +17,49 @@ fn resolve_uid(username: &str) -> Option<u32> {
     })
 }
 
+fn resolve_home(username: &str) -> Option<String> {
+    let passwd = fs::read_to_string("/etc/passwd").ok()?;
+    passwd.lines().find_map(|line| {
+        let parts: Vec<&str> = line.split(':').collect();
+        if parts.len() >= 6 && parts[0] == username {
+            Some(parts[5].to_string())
+        } else {
+            None
+        }
+    })
+}
+
+fn binary_exists(name: &str) -> bool {
+    let paths = ["/usr/bin", "/usr/local/bin", "/bin", "/usr/sbin", "/sbin"];
+    for p in paths {
+        if std::path::Path::new(p).join(name).exists() {
+            return true;
+        }
+    }
+    false
+}
+
+fn prepare_user_command(username: &str, display_str: &str) -> Command {
+    let uid = resolve_uid(username).unwrap_or(1000);
+    let home = resolve_home(username).unwrap_or_else(|| format!("/home/{}", username));
+    let xdg_runtime = format!("/run/user/{}", uid);
+
+    let mut cmd = Command::new("runuser");
+    cmd.arg("-u").arg(username).arg("--");
+    cmd.env("HOME", &home);
+    cmd.env("USER", username);
+    cmd.env("LOGNAME", username);
+    cmd.env("XDG_RUNTIME_DIR", &xdg_runtime);
+    cmd.env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={}/bus", xdg_runtime));
+    cmd.env("DISPLAY", display_str);
+    cmd.env_remove("WAYLAND_DISPLAY");
+    cmd.env("XDG_SESSION_TYPE", "x11");
+    cmd.env_remove("GDK_BACKEND");
+    cmd.env_remove("QT_QPA_PLATFORM");
+    cmd.env_remove("XAUTHORITY");
+    cmd
+}
+
 fn detect_existing_session_kind(username: &str, display_id: u8) -> SessionKind {
     if let Some(uid) = resolve_uid(username) {
         let runtime_dir = std::path::PathBuf::from(format!("/run/user/{}", uid));
@@ -79,20 +122,16 @@ impl AstraX11UserSession {
             }
         };
 
-        let desktop_proc = if matches!(session_kind, SessionKind::X11 | SessionKind::Virtual) && xvfb_proc.is_some() {
-            let wms = vec!["fly-wm", "openbox", "mate-session", "xfce4-session", "i3", "xterm"];
+        let desktop_proc = if matches!(session_kind, SessionKind::Virtual) && xvfb_proc.is_some() {
+            let wms = vec!["fly-wm", "openbox", "kwin_x11", "mate-session", "xfce4-session", "i3", "xterm"];
             let mut spawned = None;
             for wm in wms {
+                if !binary_exists(wm) {
+                    continue;
+                }
                 info!("Trying to spawn window manager: {}", wm);
-                let child = Command::new("runuser")
-                    .arg("-u").arg(username)
-                    .arg("--")
+                let child = prepare_user_command(username, &display_str)
                     .arg(wm)
-                    .env("DISPLAY", &display_str)
-                    .env_remove("WAYLAND_DISPLAY")
-                    .env_remove("XDG_SESSION_TYPE")
-                    .env_remove("GDK_BACKEND")
-                    .env_remove("QT_QPA_PLATFORM")
                     .spawn();
                 match child {
                     Ok(c) => {
@@ -109,25 +148,20 @@ impl AstraX11UserSession {
             if spawned.is_some() {
                 info!("Spawning desktop helper applications on display {}", display_str);
 
-                let _ = Command::new("runuser")
-                    .arg("-u").arg(username)
-                    .arg("--")
-                    .arg("xsetroot")
-                    .env("DISPLAY", &display_str)
-                    .args(["-solid", "#1c1d26"])
-                    .spawn();
+                if binary_exists("xsetroot") {
+                    let _ = prepare_user_command(username, &display_str)
+                        .arg("xsetroot")
+                        .args(["-solid", "#1c1d26"])
+                        .spawn();
+                }
 
                 let terminals = vec!["konsole", "x-terminal-emulator", "mate-terminal", "gnome-terminal", "xterm"];
                 for term in terminals {
-                    if Command::new("runuser")
-                        .arg("-u").arg(username)
-                        .arg("--")
+                    if !binary_exists(term) {
+                        continue;
+                    }
+                    if prepare_user_command(username, &display_str)
                         .arg(term)
-                        .env("DISPLAY", &display_str)
-                        .env_remove("WAYLAND_DISPLAY")
-                        .env_remove("XDG_SESSION_TYPE")
-                        .env_remove("GDK_BACKEND")
-                        .env_remove("QT_QPA_PLATFORM")
                         .spawn()
                         .is_ok()
                     {
@@ -138,15 +172,11 @@ impl AstraX11UserSession {
 
                 let file_managers = vec!["fly-fm", "pcmanfm", "thunar", "nautilus", "dolphin"];
                 for fm in file_managers {
-                    if Command::new("runuser")
-                        .arg("-u").arg(username)
-                        .arg("--")
+                    if !binary_exists(fm) {
+                        continue;
+                    }
+                    if prepare_user_command(username, &display_str)
                         .arg(fm)
-                        .env("DISPLAY", &display_str)
-                        .env_remove("WAYLAND_DISPLAY")
-                        .env_remove("XDG_SESSION_TYPE")
-                        .env_remove("GDK_BACKEND")
-                        .env_remove("QT_QPA_PLATFORM")
                         .spawn()
                         .is_ok()
                     {

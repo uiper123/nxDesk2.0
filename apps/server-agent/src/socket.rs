@@ -105,6 +105,62 @@ fn find_xauthority(owner: &DisplayOwner) -> Option<String> {
             return Some(candidate);
         }
     }
+
+    // Search user's XDG_RUNTIME_DIR for xauth_* files (Xwayland / KDE Plasma sessions)
+    if let Ok(entries) = std::fs::read_dir(&owner.xdg_runtime) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("xauth") {
+                    return Some(entry.path().to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    // Search /run/sddm/ for xauth_* files (display manager session)
+    if let Ok(entries) = std::fs::read_dir("/run/sddm") {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("xauth") {
+                    return Some(entry.path().to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    // As a last resort, parse Xorg cmdline from /proc to extract -auth path
+    if let Some(xauth) = find_xauthority_from_xorg_proc(owner.uid) {
+        return Some(xauth);
+    }
+
+    None
+}
+
+/// Extract -auth path from the Xorg process command line via /proc.
+fn find_xauthority_from_xorg_proc(_owner_uid: u32) -> Option<String> {
+    let proc_dir = std::fs::read_dir("/proc").ok()?;
+    for entry in proc_dir.flatten() {
+        let pid_path = entry.path();
+        let comm_path = pid_path.join("comm");
+        if let Ok(comm) = std::fs::read_to_string(&comm_path) {
+            let comm = comm.trim();
+            if comm == "Xorg" || comm == "X" || comm == "Xwayland" {
+                let cmdline_path = pid_path.join("cmdline");
+                if let Ok(cmdline) = std::fs::read_to_string(&cmdline_path) {
+                    let args: Vec<&str> = cmdline.split('\0').collect();
+                    for (i, arg) in args.iter().enumerate() {
+                        if *arg == "-auth" {
+                            if let Some(auth_path) = args.get(i + 1) {
+                                if std::path::Path::new(auth_path).exists() {
+                                    return Some(auth_path.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     None
 }
 
@@ -527,15 +583,14 @@ fn handle_command(
                     return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
                 };
 
-                let is_wayland = owner.wayland_socket.is_some()
-                    && !std::path::Path::new(&format!("/tmp/.X11-unix/X{}", display_id)).exists();
+                let has_wayland = owner.wayland_socket.is_some();
+                let has_x11 = std::path::Path::new(&format!("/tmp/.X11-unix/X{}", display_id)).exists();
+                // Xwayland = both X11 socket and Wayland socket exist
+                let _is_xwayland = has_wayland && has_x11;
 
-                let mut cmd = if is_wayland {
+                let mut cmd = if has_wayland {
+                    // Wayland session detected — try wayvnc first
                     let wayland_socket = owner.wayland_socket.clone().unwrap_or_else(|| "wayland-0".to_string());
-                    info!(
-                        "Wayland session detected for user {} (socket {}). Using wayvnc on port {}",
-                        owner.username, wayland_socket, port
-                    );
 
                     let wayvnc_available = std::process::Command::new("sh")
                         .arg("-c")
@@ -543,30 +598,109 @@ fn handle_command(
                         .output()
                         .map(|o| o.status.success())
                         .unwrap_or(false);
-                    if !wayvnc_available {
+
+                    if wayvnc_available {
+                        info!(
+                            "Wayland session detected for user {} (socket {}). Using wayvnc on port {}",
+                            owner.username, wayland_socket, port
+                        );
+                        let mut c = std::process::Command::new("runuser");
+                        c.arg("-u").arg(&owner.username).arg("--").arg("wayvnc");
+                        c.arg(format!("127.0.0.1:{}", port));
+                        c.env("XDG_RUNTIME_DIR", &owner.xdg_runtime);
+                        c.env("WAYLAND_DISPLAY", &wayland_socket);
+                        c.env("HOME", &owner.home);
+                        c.env("USER", &owner.username);
+                        c
+                    } else if has_x11 {
+                        // wayvnc not available, but Xwayland is running — use x11vnc as fallback
+                        let display_arg = format!(":{}", display_id);
+                        info!(
+                            "Wayland session with Xwayland for user {} on display {}. wayvnc not installed, falling back to x11vnc on port {}",
+                            owner.username, display_arg, port
+                        );
+
+                        let x11vnc_available = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg("command -v x11vnc")
+                            .output()
+                            .map(|o| o.status.success())
+                            .unwrap_or(false);
+                        if !x11vnc_available {
+                            let response = serde_json::json!({
+                                "error": format!(
+                                    "Wayland session on display :{} requires wayvnc (preferred) or x11vnc (fallback via Xwayland). Neither is installed. Install one: 'pacman -S wayvnc' or 'pacman -S x11vnc'.",
+                                    display_id
+                                )
+                            });
+                            return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                        }
+
+                        let mut c = std::process::Command::new("runuser");
+                        c.arg("-u").arg(&owner.username).arg("--").arg("x11vnc");
+
+                        let port_str = port.to_string();
+                        c.args([
+                            "-display", &display_arg,
+                            "-shared",
+                            "-forever",
+                            "-nopw",
+                            "-rfbport", &port_str,
+                            "-xkb",
+                            "-localhost",
+                            // Xwayland compatibility: disable extensions that may not work
+                            "-noxdamage",
+                            "-noxrecord",
+                            "-noxfixes",
+                        ]);
+
+                        let xauth_path = find_xauthority(&owner);
+                        if let Some(ref xauth) = xauth_path {
+                            info!("Using XAUTHORITY for Xwayland: {}", xauth);
+                            c.args(["-auth", xauth]);
+                            c.env("XAUTHORITY", xauth);
+                        }
+
+                        c.env("DISPLAY", &display_arg);
+                        c.env("XDG_RUNTIME_DIR", &owner.xdg_runtime);
+                        c.env_remove("WAYLAND_DISPLAY");
+                        c.env_remove("GDK_BACKEND");
+                        c.env_remove("XDG_SESSION_TYPE");
+                        c
+                    } else {
+                        // Pure Wayland, no Xwayland, no wayvnc
                         let response = serde_json::json!({
                             "error": format!(
-                                "Wayland session on display :{} requires wayvnc, but it is not installed on the host. Install it with the system package manager (e.g. 'apt install wayvnc').",
+                                "Wayland session on display :{} requires wayvnc, but it is not installed. Install it: 'pacman -S wayvnc' or 'apt install wayvnc'.",
                                 display_id
                             )
                         });
                         return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
                     }
-
-                    let mut c = std::process::Command::new("runuser");
-                    c.arg("-u").arg(&owner.username).arg("--").arg("wayvnc");
-                    c.arg("127.0.0.1").arg(port.to_string());
-                    c.env("XDG_RUNTIME_DIR", &owner.xdg_runtime);
-                    c.env("WAYLAND_DISPLAY", &wayland_socket);
-                    c.env("HOME", &owner.home);
-                    c.env("USER", &owner.username);
-                    c
                 } else {
+                    // Pure X11 session (no Wayland)
                     let display_arg = format!(":{}", display_id);
                     info!(
                         "Starting x11vnc for user {} on display {} port {}",
                         owner.username, display_arg, port
                     );
+
+                    // Check if x11vnc is available before trying to spawn it
+                    let x11vnc_available = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg("command -v x11vnc")
+                        .output()
+                        .map(|o| o.status.success())
+                        .unwrap_or(false);
+                    if !x11vnc_available {
+                        let response = serde_json::json!({
+                            "error": format!(
+                                "X11 session on display :{} requires x11vnc, but it is not installed. Install it with the system package manager (e.g. 'pacman -S x11vnc' or 'apt install x11vnc').",
+                                display_id
+                            )
+                        });
+                        return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    }
 
                     let mut c = std::process::Command::new("runuser");
                     c.arg("-u").arg(&owner.username).arg("--").arg("x11vnc");
@@ -582,23 +716,33 @@ fn handle_command(
                         "-localhost",
                     ]);
 
-                    if display_id == 0 {
+                    // Try to find the specific xauth file first
+                    let xauth_path = find_xauthority(&owner);
+                    if let Some(ref xauth) = xauth_path {
+                        info!("Using XAUTHORITY: {}", xauth);
+                        c.args(["-auth", xauth]);
+                        c.env("XAUTHORITY", xauth);
+                    } else if display_id == 0 {
+                        // Fallback to -auth guess for system display :0
+                        info!("No explicit XAUTHORITY found for display :0, using -auth guess");
                         c.args(["-auth", "guess"]);
                     }
 
-                    if let Some(xauth) = find_xauthority(&owner) {
-                        c.env("XAUTHORITY", xauth);
-                    }
+                    c.env("DISPLAY", &display_arg);
                     c.env_remove("WAYLAND_DISPLAY");
                     c.env_remove("GDK_BACKEND");
                     c.env_remove("XDG_SESSION_TYPE");
                     c
                 };
 
+                cmd.stderr(std::process::Stdio::piped());
                 match cmd.spawn() {
                     Ok(mut child) => {
                         let mut vnc_started = false;
                         for _ in 0..15 {
+                            if let Ok(Some(_)) = child.try_wait() {
+                                break;
+                            }
                             std::thread::sleep(std::time::Duration::from_millis(200));
                             if std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
                                 vnc_started = true;
@@ -607,6 +751,7 @@ fn handle_command(
                         }
                         
                         if vnc_started {
+                            info!("VNC server successfully started on port {}", port);
                             std::thread::spawn(move || { let _ = child.wait(); });
                             let response = serde_json::json!({
                                 "success": true,
@@ -614,17 +759,39 @@ fn handle_command(
                             });
                             format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
                         } else {
+                            // Capture stderr from the failed VNC process for diagnostics
+                            let mut stderr_text = String::new();
+                            if let Some(mut pipe) = child.stderr.take() {
+                                use std::io::Read;
+                                let _ = pipe.read_to_string(&mut stderr_text);
+                            }
                             let _ = child.kill();
                             let _ = child.wait();
+                            let mut detail = stderr_text.lines().last().unwrap_or("").to_string();
+                            if stderr_text.contains("Virtual Pointer") || stderr_text.contains("Screencopy") {
+                                detail = format!(
+                                    "{} (Compositor protocol mismatch: wayvnc is only compatible with wlroots-based compositors like Sway/Hyprland. GNOME and KDE Plasma Wayland are not supported. Please log out and switch your session to X11 at the login screen.)",
+                                    detail
+                                );
+                            }
+                            let msg = if has_wayland {
+                                format!("Wayland VNC server (wayvnc) failed to start on display :{}{}.", display_id,
+                                    if detail.is_empty() { String::new() } else { format!(": {}", detail) })
+                            } else {
+                                format!("x11vnc failed to start on display :{}. The display may not be accessible or XAUTHORITY is incorrect{}.", display_id,
+                                    if detail.is_empty() { String::new() } else { format!(": {}", detail) })
+                            };
+                            warn!("{}", msg);
                             let response = serde_json::json!({
-                                "error": format!("VNC server failed to start on display :{}. The display may not be accessible, or missing Wayland VNC server (wayvnc).", display_id)
+                                "error": msg
                             });
                             format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
                         }
                     }
                     Err(e) => {
+                        let binary_name = if has_wayland { "wayvnc" } else { "x11vnc" };
                         let response = serde_json::json!({
-                            "error": format!("Failed to spawn x11vnc: {}", e)
+                            "error": format!("Failed to spawn {}: {}", binary_name, e)
                         });
                         format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
                     }
