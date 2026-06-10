@@ -3,6 +3,7 @@ import styles from "./ActiveSession.module.css";
 import { apiService, AppInfo, API_BASE_URL } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
+import { IconFolder, IconApps, IconZoom, IconCompass, IconInfo, IconLink, IconExpand, IconClose, IconRocket } from "../Icons";
 import {
     buildRemoteDesktopUrls,
     buildUploadUrl,
@@ -332,7 +333,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             setShowAppManager(false);
                         }}
                     >
-                        📁 File Transfer
+                        <IconFolder size={14} /> File Transfer
                     </button>
                     <button
                         className={styles.toolButton}
@@ -341,7 +342,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             setShowFileTransfer(false);
                         }}
                     >
-                        🚀 Менеджер приложений
+                        <IconApps size={14} /> Менеджер приложений
                     </button>
                     <button
                         className={styles.toolButton}
@@ -353,25 +354,25 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             });
                         }}
                     >
-                        🔍 Scale: {currentScale}
+                        <IconZoom size={14} /> Scale: {currentScale}
                     </button>
                     <button
                         className={styles.toolButton}
                         onClick={() => setConnectionMode(prev => prev === "performance" ? "balanced" : prev === "balanced" ? "clarity" : "performance")}
                     >
-                        🧭 Mode: {modeDetails.label}
+                        <IconCompass size={14} /> Mode: {modeDetails.label}
                     </button>
                     <button
                         className={`${styles.toolButton} ${showOverview ? styles.toolButtonActive : ""}`}
                         onClick={() => setShowOverview(prev => !prev)}
                     >
-                        ℹ️ Session info
+                        <IconInfo size={14} /> Session info
                     </button>
                     <button
                         className={styles.toolButton}
                         onClick={handleCopyEndpoint}
                     >
-                        🔗 Copy endpoint
+                        <IconLink size={14} /> Copy endpoint
                     </button>
                     <button
                         className={styles.toolButton}
@@ -386,7 +387,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             setIsFullscreen(!document.fullscreenElement);
                         }}
                     >
-                        📺 {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        <IconExpand size={14} /> {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
                     </button>
                     <button className={styles.disconnectButton} onClick={onDisconnect}>
                         Disconnect
@@ -500,7 +501,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarHeader}>
                             <h3>Файловый менеджер</h3>
-                            <button onClick={() => setShowFileTransfer(false)}>✕</button>
+                            <button className={styles.sidebarClose} onClick={() => setShowFileTransfer(false)} aria-label="Закрыть"><IconClose size={15} /></button>
                         </div>
                         <div className={styles.sidebarContent}>
                             <div 
@@ -550,23 +551,15 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarHeader}>
                             <h3>Менеджер приложений</h3>
-                            <div style={{ display: "flex", gap: "8px" }}>
+                            <div className={styles.sidebarHeaderActions}>
                                 <button 
                                     onClick={() => handleLaunchApp("xdotool getactivewindow windowkill || wmctrl -c :ACTIVE:")}
-                                    style={{ 
-                                        backgroundColor: "rgba(255, 50, 50, 0.2)", 
-                                        color: "#ff5555", 
-                                        border: "1px solid #ff5555", 
-                                        borderRadius: "4px", 
-                                        padding: "2px 8px", 
-                                        cursor: "pointer",
-                                        fontSize: "12px"
-                                    }}
+                                    className={styles.killWindowButton}
                                     title="Закрыть активное окно на удаленном рабочем столе"
                                 >
                                     Закрыть окно
                                 </button>
-                                <button onClick={() => setShowAppManager(false)}>✕</button>
+                                <button className={styles.sidebarClose} onClick={() => setShowAppManager(false)} aria-label="Закрыть"><IconClose size={15} /></button>
                             </div>
                         </div>
                         <div className={styles.sidebarContent}>
@@ -589,7 +582,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                                                 className={styles.appItem}
                                                 onClick={() => handleLaunchApp(app.exec)}
                                             >
-                                                <div className={styles.appIcon}>🚀</div>
+                                                <div className={styles.appIcon}><IconRocket size={16} /></div>
                                                 <div className={styles.appInfoText}>
                                                     <div className={styles.appName}>{app.name}</div>
                                                     <div className={styles.appExec}>{app.exec}</div>

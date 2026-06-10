@@ -1,40 +1,42 @@
 .container {
-  padding: 24px;
-  max-width: 740px;
+  padding: 28px 32px;
+  max-width: 720px;
   color: var(--color-text-primary);
 }
 
 .title {
   margin: 0 0 24px;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .section {
-  margin-bottom: 20px;
-  padding: 20px;
-  border-radius: 18px;
+  margin-bottom: 24px;
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
+  overflow: hidden;
 }
 
 .sectionTitle {
-  margin: 0 0 16px;
-  font-size: 0.82rem;
-  font-weight: 800;
+  margin: 0;
+  padding: 14px 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .settingRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .settingRow:last-child {
@@ -44,59 +46,73 @@
 .settingInfo {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .settingInfo label {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 .settingInfo span {
+  font-size: 0.8rem;
   color: var(--color-text-muted);
-  font-size: 0.84rem;
-}
-
-.settingRow select,
-.checkbox {
-  min-height: 40px;
 }
 
 .settingRow select {
+  min-height: 36px;
   min-width: 220px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  background: rgba(8, 10, 14, 0.72);
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-inset);
   color: var(--color-text-primary);
+  font-size: 0.85rem;
   outline: none;
+  transition: border-color var(--duration-base) ease;
+}
+
+.settingRow select:focus {
+  border-color: var(--color-accent-border);
 }
 
 .checkbox {
   width: 18px;
   height: 18px;
   accent-color: var(--color-accent);
+  cursor: pointer;
 }
 
 .saveButton {
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-strong) 100%);
-  color: #0b0e13;
-  font-size: 0.9rem;
-  font-weight: 800;
+  min-height: 38px;
+  padding: 0 20px;
+  border: 1px solid var(--color-accent-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform var(--duration-base) var(--ease-spring), opacity var(--duration-base) ease;
+  transition: background var(--duration-base) ease, opacity var(--duration-base) ease;
 }
 
-.saveButton:hover {
-  transform: translateY(-1px);
+.saveButton:hover:not(:disabled) {
+  background: var(--color-accent-strong);
 }
 
 .saveButton:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
-  transform: none;
+}
+
+.stateText {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.stateError {
+  color: var(--color-danger);
 }

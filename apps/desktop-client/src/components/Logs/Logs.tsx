@@ -77,7 +77,7 @@ export const Logs: React.FC = () => {
                 <div className={styles.header}>
                     <h2 className={styles.title}>System Log Audits</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center" }}>Loading logs...</div>
+                <div className={styles.stateText}>Loading logs...</div>
             </div>
         );
     }
@@ -88,7 +88,7 @@ export const Logs: React.FC = () => {
                 <div className={styles.header}>
                     <h2 className={styles.title}>System Log Audits</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center", color: "red" }}>{error}</div>
+                <div className={`${styles.stateText} ${styles.stateError}`}>{error}</div>
             </div>
         );
     }
@@ -110,10 +110,10 @@ export const Logs: React.FC = () => {
                         <option value="AUDIT">Audits</option>
                     </select>
                     <button className={styles.exportBtn} onClick={() => handleExport("json")}>
-                        ⤓ JSON
+                        JSON
                     </button>
                     <button className={styles.exportBtn} onClick={() => handleExport("csv")}>
-                        ⤓ CSV
+                        CSV
                     </button>
                     <button className={styles.clearBtn} onClick={handleClear}>
                         Clear

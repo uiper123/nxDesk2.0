@@ -8,6 +8,7 @@ import { Logs } from "./components/Logs";
 import { AdminPanel } from "./components/AdminPanel";
 import { Dashboard } from "./components/Dashboard";
 import { ApiHealth } from "./components/ApiHealth";
+import { IconShield, IconGrid, IconMonitor, IconSliders, IconList, IconGear, IconUser } from "./components/Icons";
 import "./App.css";
 
 type View = "dashboard" | "hosts" | "admin" | "logs" | "settings";
@@ -76,7 +77,7 @@ function App() {
       {/* Sidebar Navigation */}
       <aside className="sidebar-nav">
         <div className="brand">
-          <span className="brand-logo">🛡️</span>
+          <span className="brand-logo"><IconShield size={16} /></span>
           <h2>TTGTiSO-Desk</h2>
         </div>
 
@@ -85,38 +86,38 @@ function App() {
             className={`nav-item ${currentView === "dashboard" ? "active" : ""}`}
             onClick={() => setCurrentView("dashboard")}
           >
-            <span>📊</span> <span className="nav-label">Dashboard</span>
+            <IconGrid size={17} /> <span className="nav-label">Dashboard</span>
           </button>
           <button 
             className={`nav-item ${currentView === "hosts" ? "active" : ""}`}
             onClick={() => setCurrentView("hosts")}
           >
-            <span>🖥️</span> <span className="nav-label">Hosts Registry</span>
+            <IconMonitor size={17} /> <span className="nav-label">Hosts Registry</span>
           </button>
           <button 
             className={`nav-item ${currentView === "admin" ? "active" : ""}`}
             onClick={() => setCurrentView("admin")}
           >
-            <span>⚙️</span> <span className="nav-label">Admin Panel</span>
+            <IconSliders size={17} /> <span className="nav-label">Admin Panel</span>
           </button>
           <button 
             className={`nav-item ${currentView === "logs" ? "active" : ""}`}
             onClick={() => setCurrentView("logs")}
           >
-            <span>📋</span> <span className="nav-label">Audit Logs</span>
+            <IconList size={17} /> <span className="nav-label">Audit Logs</span>
           </button>
           <button 
             className={`nav-item ${currentView === "settings" ? "active" : ""}`}
             onClick={() => setCurrentView("settings")}
           >
-            <span>🔧</span> <span className="nav-label">Settings</span>
+            <IconGear size={17} /> <span className="nav-label">Settings</span>
           </button>
         </nav>
 
         <div className="sidebar-footer">
           <ApiHealth />
           <div className="user-profile">
-            <span className="avatar">👤</span>
+            <span className="avatar"><IconUser size={15} /></span>
             <div className="user-info">
               <span className="username">{currentUser}</span>
               <span className="role">Operator</span>

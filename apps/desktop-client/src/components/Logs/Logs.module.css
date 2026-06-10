@@ -1,5 +1,5 @@
 .container {
-  padding: 24px;
+  padding: 28px 32px;
   color: var(--color-text-primary);
 }
 
@@ -8,86 +8,83 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .title {
   margin: 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .select,
 .exportBtn,
 .clearBtn {
-  min-height: 40px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  min-height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-base) ease, color var(--duration-base) ease, background var(--duration-base) ease;
 }
 
 .select {
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  background: rgba(8, 10, 14, 0.72);
-  color: var(--color-text-primary);
+  padding: 0 10px;
   outline: none;
 }
 
-.clearBtn,
-.exportBtn {
-  padding: 0 14px;
-  cursor: pointer;
-  transition: transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) ease, background var(--duration-base) ease, color var(--duration-base) ease;
-}
-
-.clearBtn {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
-  color: var(--color-text-secondary);
-}
-
-.clearBtn:hover {
-  color: var(--color-text-primary);
+.select:focus {
   border-color: var(--color-accent-border);
 }
 
 .exportBtn {
-  border: 1px solid var(--color-accent-border);
-  background: var(--color-accent-soft);
-  color: var(--color-text-primary);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .exportBtn:hover {
-  transform: translateY(-1px);
-  background: var(--color-accent);
-  color: #0b0e13;
+  border-color: var(--color-accent-border);
+  color: var(--color-accent);
+}
+
+.clearBtn {
+  padding: 0 12px;
+}
+
+.clearBtn:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
 }
 
 .logBox {
-  height: min(70vh, 680px);
-  padding: 20px;
-  overflow: auto;
-  border-radius: 18px;
   border: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-inset);
   font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow: auto;
+  max-height: calc(100vh - 180px);
 }
 
 .logRow {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  gap: 10px;
+  display: flex;
   align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .logRow:last-child {
@@ -95,37 +92,49 @@
 }
 
 .time {
+  flex-shrink: 0;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
-  white-space: nowrap;
 }
 
 .badge {
-  min-width: 56px;
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  width: 52px;
   text-align: center;
+  padding: 1px 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
-.info .badge { background: rgba(154, 167, 255, 0.12); color: var(--color-accent); }
-.warn .badge { background: rgba(243, 186, 90, 0.12); color: var(--color-warning); }
-.error .badge { background: rgba(217, 123, 138, 0.12); color: var(--color-danger); }
-.audit .badge { background: rgba(136, 191, 118, 0.12); color: var(--color-success); }
+.info .badge { background: var(--color-accent-soft); color: var(--color-accent); }
+.warn .badge { background: var(--color-warning-soft); color: var(--color-warning); }
+.error .badge { background: var(--color-danger-soft); color: var(--color-danger); }
+.audit .badge { background: var(--color-success-soft); color: var(--color-success); }
 
 .msg {
   min-width: 0;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+}
+
+.error .msg {
+  color: var(--color-danger);
 }
 
 .empty {
-  display: grid;
-  place-items: center;
-  min-height: 280px;
+  padding: 32px;
+  text-align: center;
   color: var(--color-text-muted);
+}
+
+.stateText {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.stateError {
+  color: var(--color-danger);
 }

@@ -3,6 +3,7 @@ import styles from "./AdminPanel.module.css";
 import { apiService, ActiveSession } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
+import { IconUser } from "../Icons";
 
 export const AdminPanel: React.FC = () => {
     const { showToast } = useToast();
@@ -50,7 +51,7 @@ export const AdminPanel: React.FC = () => {
                 <div className={styles.header}>
                     <h2 className={styles.title}>Admin Control Center</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center" }}>Loading sessions...</div>
+                <div className={styles.stateText}>Loading sessions...</div>
             </div>
         );
     }
@@ -61,7 +62,7 @@ export const AdminPanel: React.FC = () => {
                 <div className={styles.header}>
                     <h2 className={styles.title}>Admin Control Center</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center", color: "red" }}>{error}</div>
+                <div className={`${styles.stateText} ${styles.stateError}`}>{error}</div>
             </div>
         );
     }
@@ -91,7 +92,7 @@ export const AdminPanel: React.FC = () => {
                         <tbody>
                             {sessions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                                    <td colSpan={6} className={styles.emptyCell}>
                                         No active sessions
                                     </td>
                                 </tr>
@@ -100,7 +101,7 @@ export const AdminPanel: React.FC = () => {
                                     <tr key={session.id}>
                                         <td>
                                             <div className={styles.userCell}>
-                                                <span className={styles.userSymbol}>👤</span>
+                                                <span className={styles.userSymbol}><IconUser size={14} /></span>
                                                 <span>{session.username}</span>
                                             </div>
                                         </td>

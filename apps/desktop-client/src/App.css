@@ -7,9 +7,7 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(154, 167, 255, 0.12), transparent 34%),
-    linear-gradient(180deg, #07090c 0%, #0b0e13 100%);
+  background: var(--color-bg-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -28,18 +26,16 @@ button {
 }
 
 ::selection {
-  background: rgba(154, 167, 255, 0.28);
-  color: #ffffff;
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
 }
 
 .app-workspace {
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
-    var(--color-bg-deep);
+  background: var(--color-bg-base);
 }
 
 .sidebar-nav {
@@ -47,36 +43,36 @@ button {
   flex-direction: column;
   justify-content: space-between;
   gap: 20px;
-  padding: 28px 22px;
-  background: rgba(10, 13, 18, 0.9);
+  padding: 20px 16px;
+  background: var(--color-bg-deep);
   border-right: 1px solid var(--color-border);
-  backdrop-filter: blur(18px);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 4px 4px 18px;
+  gap: 10px;
+  padding: 4px 8px 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .brand-logo {
-  font-size: 1.35rem;
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+  flex-shrink: 0;
 }
 
 .brand h2 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-primary);
 }
@@ -84,86 +80,77 @@ button {
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   flex: 1;
 }
 
 .nav-item {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 13px 14px;
-  border: 1px solid transparent;
+  padding: 9px 10px;
+  border: 0;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-secondary);
   text-align: left;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) ease, background var(--duration-base) ease, color var(--duration-base) ease;
+  transition: background var(--duration-base) ease, color var(--duration-base) ease;
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: color var(--duration-base) ease;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-surface);
   color: var(--color-text-primary);
+}
+
+.nav-item:hover svg {
+  color: var(--color-text-secondary);
 }
 
 .nav-item.active {
-  background: rgba(154, 167, 255, 0.08);
-  border-color: var(--color-accent-border);
+  background: var(--color-bg-raised);
   color: var(--color-text-primary);
-  box-shadow: var(--shadow-glow-accent);
 }
 
-.nav-item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 0;
-  transform: translateY(-50%);
-  border-radius: var(--radius-pill);
-  background: var(--color-accent);
-  transition: height var(--duration-base) var(--ease-spring);
-}
-
-.nav-item.active::before {
-  height: 60%;
-}
-
-.nav-item:active {
-  transform: translateY(1px) scale(0.99);
+.nav-item.active svg {
+  color: var(--color-accent);
 }
 
 .sidebar-footer {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-top: 18px;
+  gap: 12px;
+  padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 0 2px;
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .user-info {
@@ -173,65 +160,56 @@ button {
 }
 
 .username {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .role {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
 }
 
 .logout-btn {
   width: 100%;
-  padding: 11px 14px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-danger-border);
-  background: rgba(217, 123, 138, 0.08);
-  color: var(--color-danger);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.83rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform var(--duration-base) var(--ease-spring), background var(--duration-base) ease, border-color var(--duration-base) ease, color var(--duration-base) ease;
+  transition: border-color var(--duration-base) ease, color var(--duration-base) ease, background var(--duration-base) ease;
 }
 
 .logout-btn:hover {
-  background: var(--color-danger);
-  color: #0b0e13;
-  border-color: transparent;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
 }
 
 .workspace-content {
   min-width: 0;
   overflow: auto;
-  background:
-    radial-gradient(circle at top right, rgba(154, 167, 255, 0.08), transparent 24%),
-    var(--color-bg-base);
-}
-
-.workspace-content > * {
-  animation: viewIn var(--duration-slow) var(--ease-spring);
-}
-
-@keyframes viewIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  background: var(--color-bg-base);
 }
 
 @media (max-width: 900px) {
   .app-workspace {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 
   .sidebar-nav {
-    padding: 18px 10px;
+    padding: 16px 10px;
+  }
+
+  .brand {
+    justify-content: center;
+    padding: 4px 0 14px;
   }
 
   .brand h2,
@@ -242,11 +220,15 @@ button {
 
   .nav-item {
     justify-content: center;
-    padding: 12px;
+    padding: 10px;
+  }
+
+  .user-profile {
+    justify-content: center;
   }
 
   .logout-btn {
-    padding: 10px 8px;
-    font-size: 0.72rem;
+    padding: 8px 4px;
+    font-size: 0.7rem;
   }
 }

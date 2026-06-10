@@ -2,29 +2,28 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
-    background: var(--color-bg-base);
-    font-size: 0.75rem;
-    font-weight: 600;
+    background: var(--color-bg-surface);
+    font-size: 0.72rem;
+    font-weight: 500;
 }
 
 .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
     flex-shrink: 0;
 }
 
 .checking .dot {
     background: var(--color-warning);
-    animation: healthPulse 1.2s ease infinite;
+    animation: healthPulse 1.4s ease infinite;
 }
 
 .online .dot {
     background: var(--color-success);
-    animation: healthPulse 2.4s ease infinite;
 }
 
 .offline .dot {
@@ -36,6 +35,6 @@
 .offline .label { color: var(--color-danger); }
 
 @keyframes healthPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(158, 206, 106, 0.4); }
-    50% { box-shadow: 0 0 0 5px rgba(158, 206, 106, 0); }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
 }

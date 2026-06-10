@@ -55,7 +55,7 @@ export const Settings: React.FC = () => {
         return (
             <div className={styles.container}>
                 <h2 className={styles.title}>System Settings</h2>
-                <div style={{ padding: "2rem", textAlign: "center" }}>Loading settings...</div>
+                <div className={styles.stateText}>Loading settings...</div>
             </div>
         );
     }
@@ -64,7 +64,7 @@ export const Settings: React.FC = () => {
         return (
             <div className={styles.container}>
                 <h2 className={styles.title}>System Settings</h2>
-                <div style={{ padding: "2rem", textAlign: "center", color: "red" }}>{error}</div>
+                <div className={`${styles.stateText} ${styles.stateError}`}>{error}</div>
             </div>
         );
     }

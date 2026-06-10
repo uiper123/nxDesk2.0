@@ -1,7 +1,7 @@
 .container {
-  padding: 24px;
+  padding: 28px 32px;
   color: var(--color-text-primary);
-  animation: viewIn var(--duration-slow) var(--ease-spring);
+  animation: viewIn var(--duration-slow) var(--ease-out);
 }
 
 .headerRow {
@@ -14,69 +14,64 @@
 
 .title {
   margin: 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .refreshHint {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .errorBanner {
   margin-bottom: 20px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-danger-border);
-  background: rgba(217, 123, 138, 0.1);
-  color: #f0b3be;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 0.875rem;
 }
 
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .statCard {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 20px;
-  border-radius: 18px;
+  gap: 4px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) ease, box-shadow var(--duration-base) ease;
-  animation: viewIn var(--duration-slow) var(--ease-spring) backwards;
+  transition: border-color var(--duration-base) ease, background var(--duration-base) ease;
 }
 
-.statCard:nth-child(1) { animation-delay: 0.03s; }
-.statCard:nth-child(2) { animation-delay: 0.08s; }
-.statCard:nth-child(3) { animation-delay: 0.13s; }
-.statCard:nth-child(4) { animation-delay: 0.18s; }
-
 .statCard:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-accent-border);
-  box-shadow: var(--shadow-glow-accent);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-raised);
 }
 
 .statValue {
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.05em;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .statLabel {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 500;
   color: var(--color-text-secondary);
 }
 
@@ -85,32 +80,33 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  font-size: 0.78rem;
+  margin-top: 6px;
+  font-size: 0.74rem;
   color: var(--color-text-muted);
 }
 
 .dotOnline,
 .dotBusy,
 .dotOffline {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
   display: inline-block;
 }
 
 .dotOnline { background: var(--color-success); }
 .dotBusy { background: var(--color-warning); }
-.dotOffline { background: var(--color-danger); }
+.dotOffline { background: var(--color-text-muted); }
 
 .panelGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .panel {
-  padding: 20px;
-  border-radius: 18px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
 }
@@ -120,40 +116,41 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .panelHeader h3 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .linkButton {
   border: 0;
   background: transparent;
   color: var(--color-accent);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
   padding: 4px 0;
 }
 
 .linkButton:hover {
-  opacity: 0.8;
+  color: var(--color-accent-strong);
 }
 
 .empty {
   padding: 16px 0;
   color: var(--color-text-muted);
   text-align: center;
+  font-size: 0.85rem;
 }
 
 .sessionList,
 .logList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -164,35 +161,37 @@
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: rgba(8, 10, 14, 0.75);
+  background: var(--color-bg-base);
 }
 
 .sessionUser {
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 0.85rem;
   color: var(--color-text-primary);
 }
 
 .sessionHost {
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 .sessionLoad {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .logRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .logRow:last-child {
@@ -201,21 +200,25 @@
 
 .logBadge {
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: var(--radius-pill);
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  width: 52px;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
 }
 
-.logBadge.info { background: rgba(154, 167, 255, 0.12); color: var(--color-accent); }
-.logBadge.warn { background: rgba(243, 186, 90, 0.12); color: var(--color-warning); }
-.logBadge.error { background: rgba(217, 123, 138, 0.12); color: var(--color-danger); }
-.logBadge.audit { background: rgba(136, 191, 118, 0.12); color: var(--color-success); }
+.logBadge.info { background: var(--color-accent-soft); color: var(--color-accent); }
+.logBadge.warn { background: var(--color-warning-soft); color: var(--color-warning); }
+.logBadge.error { background: var(--color-danger-soft); color: var(--color-danger); }
+.logBadge.audit { background: var(--color-success-soft); color: var(--color-success); }
 
 .logMsg {
   min-width: 0;
   color: var(--color-text-secondary);
+  font-size: 0.82rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -223,13 +226,14 @@
 
 .skeletonGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 .skeletonCard {
-  height: 112px;
-  border-radius: 18px;
+  height: 104px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   background: linear-gradient(100deg, var(--color-bg-surface) 30%, var(--color-bg-raised) 50%, var(--color-bg-surface) 70%);
   background-size: 200% 100%;
   animation: shimmer 1.35s ease infinite;
@@ -240,12 +244,6 @@
 }
 
 @keyframes viewIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

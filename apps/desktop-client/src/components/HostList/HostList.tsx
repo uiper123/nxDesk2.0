@@ -3,6 +3,7 @@ import styles from "./HostList.module.css";
 import { apiService, Host, ActiveSession } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
+import { IconSearch, IconPlus, IconClose, IconUser, IconRefresh } from "../Icons";
 
 interface HostListProps {
     onSelectHost: (hostIp: string, port: number, username: string, displayId?: number) => void;
@@ -210,7 +211,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 <div className={styles.header}>
                     <h2>Реестр управляемых хостов</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center" }}>Загрузка хостов...</div>
+                <div className={styles.stateText}>Загрузка хостов...</div>
             </div>
         );
     }
@@ -221,7 +222,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 <div className={styles.header}>
                     <h2>Реестр управляемых хостов</h2>
                 </div>
-                <div style={{ padding: "2rem", textAlign: "center", color: "#f7768e" }}>{error}</div>
+                <div className={`${styles.stateText} ${styles.stateError}`}>{error}</div>
             </div>
         );
     }
@@ -235,10 +236,10 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 </div>
                 <div className={styles.headerActions}>
                     <button className={styles.secondaryButton} onClick={handleScanHosts}>
-                        🔍 Сканировать сеть
+                        <IconSearch size={15} /> Сканировать сеть
                     </button>
                     <button className={styles.secondaryButton} onClick={() => setShowAddHost(true)}>
-                        + Добавить хост
+                        <IconPlus size={15} /> Добавить хост
                     </button>
                 </div>
             </div>
@@ -318,7 +319,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Подключение к {selectedHost.name}</h3>
-                            <button className={styles.closeButton} onClick={() => setSelectedHost(null)}>✕</button>
+                            <button className={styles.closeButton} onClick={() => setSelectedHost(null)} aria-label="Закрыть"><IconClose size={16} /></button>
                         </div>
 
                         {modalLoading && activeSessions.length === 0 ? (
@@ -339,7 +340,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                                     className={styles.sessionItem}
                                                     onClick={() => handleSelectSession(session)}
                                                 >
-                                                    <span className={styles.sessionUser}>👤 {session.username}</span>
+                                                    <span className={styles.sessionUser}><IconUser size={14} /> {session.username}</span>
                                                     <span className={styles.sessionTime}>Дисплей: {session.display_id}</span>
                                                 </div>
                                             ))
@@ -351,26 +352,17 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                     <h4>Запуск новой сессии</h4>
                                     
                                     {systemUsers.length > 0 && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px' }}>
-                                            <div style={{ fontSize: '12px', color: '#9aa5ce', marginBottom: '4px' }}>Доступные пользователи:</div>
+                                        <div className={styles.userRowList}>
+                                            <p className={styles.modalHint}>Доступные пользователи:</p>
                                             {systemUsers.map(u => {
                                                 const isRunning = activeSessions.some(s => s.username === u);
                                                 return (
-                                                    <div key={u} style={{ 
-                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                                        background: '#1a1b26', padding: '8px 12px', borderRadius: '4px' 
-                                                    }}>
-                                                        <span style={{ color: '#c0caf5' }}>👤 {u}</span>
+                                                    <div key={u} className={styles.userRow}>
+                                                        <span className={styles.userName}><IconUser size={14} /> {u}</span>
                                                         <button 
-                                                            className={styles.actionButton} 
+                                                            className={styles.actionButtonGhost} 
                                                             onClick={() => { setNewUsername(u); setTimeout(handleStartNewSession, 0); }}
                                                             disabled={isRunning || modalLoading}
-                                                            style={{ 
-                                                                padding: '6px 12px', 
-                                                                background: isRunning ? '#292e42' : '#2d334b', 
-                                                                color: isRunning ? '#565f89' : '#c0caf5',
-                                                                opacity: isRunning || modalLoading ? 0.5 : 1
-                                                            }}
                                                         >
                                                             {isRunning ? 'Запущено' : 'Запустить'}
                                                         </button>
@@ -380,8 +372,8 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                         </div>
                                     )}
 
-                                    <div style={{ fontSize: '12px', color: '#9aa5ce', marginBottom: '8px' }}>Или запустить с произвольным именем:</div>
-                                    <div className={styles.inputGroup} style={{ flexDirection: 'row', gap: '10px' }}>
+                                    <p className={styles.modalHint}>Или запустить с произвольным именем:</p>
+                                    <div className={styles.inputGroup}>
                                         <input 
                                             type="text" 
                                             placeholder="Имя пользователя (например, user1)" 
@@ -413,10 +405,10 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Добавление хоста</h3>
-                            <button className={styles.closeButton} onClick={() => setShowAddHost(false)}>✕</button>
+                            <button className={styles.closeButton} onClick={() => setShowAddHost(false)} aria-label="Закрыть"><IconClose size={16} /></button>
                         </div>
                         <div className={styles.modalSection}>
-                            <div className={styles.inputGroup} style={{ flexDirection: 'column', gap: '10px' }}>
+                            <div className={`${styles.inputGroup} ${styles.inputGroupColumn}`}>
                                 <input 
                                     type="text" 
                                     placeholder="Имя хоста (например, Server1)" 
@@ -442,7 +434,6 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                     className={styles.actionButton}
                                     onClick={handleAddHost}
                                     disabled={addHostLoading || !newHostName.trim() || !newHostIp.trim()}
-                                    style={{ marginTop: '10px', width: '100%' }}
                                 >
                                     Добавить
                                 </button>
@@ -457,46 +448,37 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
 
             {showScanHosts && (
                 <div className={styles.modalOverlay} onClick={() => setShowScanHosts(false)}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                    <div className={`${styles.modalContent} ${styles.modalWide}`} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Сканирование сети</h3>
-                            <button className={styles.closeButton} onClick={() => setShowScanHosts(false)}>✕</button>
+                            <button className={styles.closeButton} onClick={() => setShowScanHosts(false)} aria-label="Закрыть"><IconClose size={16} /></button>
                         </div>
                         <div className={styles.modalSection}>
-                            <p style={{ color: '#9aa5ce', marginBottom: '15px' }}>
+                            <p className={styles.modalHint}>
                                 Ожидание UDP beacon пакетов от агентов в локальной сети...
                             </p>
-                            
+
                             {scanLoading ? (
-                                <div className={styles.spinner} style={{ margin: '20px auto' }}></div>
+                                <div className={styles.spinner}></div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div className={styles.discoveredList}>
                                     {discoveredHosts.length === 0 ? (
-                                        <div style={{ textAlign: 'center', color: '#565f89', padding: '20px' }}>
+                                        <div className={styles.noSessions}>
                                             Не найдено новых агентов.
                                         </div>
                                     ) : (
                                         discoveredHosts.map(h => {
                                             const isAlreadyAdded = hosts.some(reg => reg.ip === h.ip);
                                             return (
-                                                <div key={h.ip} style={{ 
-                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                                    background: '#1a1b26', padding: '10px 15px', borderRadius: '6px' 
-                                                }}>
+                                                <div key={h.ip} className={styles.discoveredRow}>
                                                     <div>
-                                                        <div style={{ fontWeight: 'bold', color: '#c0caf5' }}>{h.name}</div>
-                                                        <div style={{ fontSize: '12px', color: '#7dcfff' }}>{h.ip}:{h.port}</div>
+                                                        <div className={styles.discoveredName}>{h.name}</div>
+                                                        <div className={styles.discoveredAddr}>{h.ip}:{h.port}</div>
                                                     </div>
                                                     <button 
+                                                        className={styles.actionButtonGhost}
                                                         onClick={() => handleAddDiscovered(h)}
                                                         disabled={isAlreadyAdded}
-                                                        style={{ 
-                                                            background: isAlreadyAdded ? '#292e42' : '#7aa2f7', 
-                                                            color: isAlreadyAdded ? '#565f89' : '#1a1b26',
-                                                            border: 'none', padding: '6px 12px', borderRadius: '4px',
-                                                            cursor: isAlreadyAdded ? 'not-allowed' : 'pointer',
-                                                            fontWeight: 'bold'
-                                                        }}
                                                     >
                                                         {isAlreadyAdded ? 'Уже добавлен' : 'Добавить'}
                                                     </button>
@@ -504,14 +486,8 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                             );
                                         })
                                     )}
-                                    <button 
-                                        onClick={handleScanHosts}
-                                        style={{ 
-                                            background: '#3b4261', color: '#c0caf5', border: 'none', 
-                                            padding: '8px', borderRadius: '4px', cursor: 'pointer', marginTop: '10px' 
-                                        }}
-                                    >
-                                        🔄 Обновить список
+                                    <button className={styles.secondaryButton} onClick={handleScanHosts}>
+                                        <IconRefresh size={15} /> Обновить список
                                     </button>
                                 </div>
                             )}

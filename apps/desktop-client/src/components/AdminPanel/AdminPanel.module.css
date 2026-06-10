@@ -1,5 +1,5 @@
 .container {
-  padding: 24px;
+  padding: 28px 32px;
   color: var(--color-text-primary);
 }
 
@@ -8,121 +8,143 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .title {
   margin: 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .warningBadge {
-  padding: 5px 11px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-danger-border);
-  background: rgba(217, 123, 138, 0.08);
-  color: var(--color-danger);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .section {
-  padding: 20px;
-  border-radius: 18px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
+  margin-bottom: 24px;
 }
 
 .sectionTitle {
-  margin: 0 0 16px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
 .tableWrapper {
-  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  overflow: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
+  font-size: 0.85rem;
 }
 
 .table th {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-inset);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  vertical-align: middle;
 }
 
-.table tr:last-child td {
+.table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.table tbody tr {
+  transition: background var(--duration-base) ease;
+}
+
+.table tbody tr:hover {
+  background: var(--color-bg-raised);
 }
 
 .userCell {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
   color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 .userSymbol {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: rgba(154, 167, 255, 0.1);
+  display: inline-flex;
+  color: var(--color-text-muted);
 }
 
 .displayBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-accent-border);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-accent-soft);
-  color: var(--color-text-primary);
-  font-weight: 700;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
 }
 
 .highLoad {
-  color: var(--color-warning);
-  font-weight: 700;
+  color: var(--color-danger);
+  font-weight: 600;
 }
 
 .terminateButton {
-  min-height: 36px;
+  min-height: 30px;
   padding: 0 12px;
-  border-radius: 10px;
   border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-danger);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background var(--duration-base) ease, transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) ease;
+  transition: background var(--duration-base) ease, color var(--duration-base) ease;
 }
 
 .terminateButton:hover {
-  background: rgba(217, 123, 138, 0.08);
-  transform: translateY(-1px);
+  background: var(--color-danger);
+  color: var(--color-bg-deep);
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-muted);
+}
+
+.stateText {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.stateError {
+  color: var(--color-danger);
 }
