@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import styles from "./HostList.module.css";
 import { apiService, Host, ActiveSession } from "../../services/api";
+import { useToast } from "../Toast";
+import { logger } from "../../services/logger";
 
 interface HostListProps {
     onSelectHost: (hostIp: string, port: number, username: string, displayId?: number) => void;
 }
 
 export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
+    const { showToast } = useToast();
     const [hosts, setHosts] = useState<Host[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -38,7 +41,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 setHosts(data);
             } catch (err) {
                 setError("Failed to load hosts");
-                console.error("Error fetching hosts:", err);
+                logger.error("HostList", "Error fetching hosts:", err);
             } finally {
                 setLoading(false);
             }
@@ -68,11 +71,11 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 const sysUsers = await apiService.getSystemUsers(host.ip);
                 setSystemUsers(sysUsers);
             } catch (uErr) {
-                console.error("Failed to fetch system users", uErr);
+                logger.error("HostList", "Failed to fetch system users", uErr);
                 setSystemUsers([]);
             }
         } catch (err) {
-            console.error("Error fetching sessions for host:", err);
+            logger.error("HostList", "Error fetching sessions for host:", err);
             setModalError("Failed to fetch active sessions");
         } finally {
             setModalLoading(false);
@@ -115,7 +118,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 setModalError(res.message || "Failed to start session");
             }
         } catch (err: any) {
-            console.error("Error starting new session:", err);
+            logger.error("HostList", "Error starting new session:", err);
             setModalError(err.message || "Network error while starting session");
         } finally {
             setModalLoading(false);
@@ -157,7 +160,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
             const data = await apiService.getDiscoveredHosts();
             setDiscoveredHosts(data);
         } catch (err) {
-            console.error("Failed to scan hosts", err);
+            logger.error("HostList", "Failed to scan hosts", err);
         } finally {
             setScanLoading(false);
         }
@@ -173,12 +176,12 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
             if (res.success) {
                 const data = await apiService.getHosts();
                 setHosts(data);
-                alert(`Хост ${h.name} добавлен!`);
+                showToast("success", `Хост ${h.name} добавлен`);
             } else {
-                alert(`Ошибка: ${res.message}`);
+                showToast("error", "Ошибка", res.message);
             }
         } catch (err: any) {
-            alert(`Ошибка: ${err.message}`);
+            showToast("error", "Ошибка", err.message);
         }
     };
 

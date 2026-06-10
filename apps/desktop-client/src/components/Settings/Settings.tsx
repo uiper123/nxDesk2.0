@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import styles from "./Settings.module.css";
 import { apiService } from "../../services/api";
+import { useToast } from "../Toast";
+import { logger } from "../../services/logger";
 
 export const Settings: React.FC = () => {
+    const { showToast } = useToast();
     const [quality, setQuality] = useState("auto");
     const [encoder, setEncoder] = useState("vaapi");
     const [fps, setFps] = useState(30);
@@ -21,7 +24,7 @@ export const Settings: React.FC = () => {
                 setAudio(data.audio);
             } catch (err) {
                 setError("Failed to load settings");
-                console.error("Error fetching settings:", err);
+                logger.error("settings", "Error fetching settings", err);
             } finally {
                 setLoading(false);
             }
@@ -39,10 +42,10 @@ export const Settings: React.FC = () => {
                 fps,
                 audio,
             });
-            alert("Settings saved successfully!");
+            showToast("success", "Settings saved", "New parameters will apply to the next session.");
         } catch (err) {
-            alert("Failed to save settings");
-            console.error("Error saving settings:", err);
+            showToast("error", "Failed to save settings", err instanceof Error ? err.message : undefined);
+            logger.error("settings", "Error saving settings", err);
         } finally {
             setSaving(false);
         }

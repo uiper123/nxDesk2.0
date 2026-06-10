@@ -1,4 +1,32 @@
-const API_BASE_URL = 'http://127.0.0.1:3001/api';
+const API_BASE_URL: string =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:3001/api';
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly statusText: string;
+  readonly body?: unknown;
+
+  constructor(status: number, statusText: string, body?: unknown) {
+    const detail =
+      body && typeof body === 'object' && 'message' in (body as Record<string, unknown>)
+        ? String((body as Record<string, unknown>).message)
+        : statusText;
+    super(`API ${status}: ${detail}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+    this.body = body;
+  }
+}
+
+export class ApiTimeoutError extends Error {
+  constructor(endpoint: string, timeoutMs: number) {
+    super(`Request to ${endpoint} timed out after ${timeoutMs}ms`);
+    this.name = 'ApiTimeoutError';
+  }
+}
 
 export interface LoginRequest {
   host: string;
@@ -62,21 +90,42 @@ export interface AppsResponse {
 class ApiService {
   private async request<T>(
     endpoint: string,
-    options?: RequestInit
+    options?: RequestInit,
+    timeoutMs: number = DEFAULT_TIMEOUT_MS
   ): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new ApiTimeoutError(endpoint, timeoutMs);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
 
-    return response.json();
+    if (!response.ok) {
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = undefined;
+      }
+      throw new ApiError(response.status, response.statusText, body);
+    }
+
+    return response.json() as Promise<T>;
   }
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -137,9 +186,18 @@ class ApiService {
     });
   }
 
-  async healthCheck(): Promise<string> {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    return response.text();
+  async healthCheck(): Promise<{ ok: boolean; latencyMs: number }> {
+    const started = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
+      return { ok: response.ok, latencyMs: Math.round(performance.now() - started) };
+    } catch {
+      return { ok: false, latencyMs: Math.round(performance.now() - started) };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async getApplications(hostIp: string): Promise<AppsResponse> {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./Logs.module.css";
 import { apiService, LogEntry } from "../../services/api";
+import { logger } from "../../services/logger";
 
 export const Logs: React.FC = () => {
     const [filter, setFilter] = useState<"ALL" | "INFO" | "WARN" | "ERROR" | "AUDIT">("ALL");
@@ -15,7 +16,7 @@ export const Logs: React.FC = () => {
             setError("");
         } catch (err) {
             setError("Failed to load logs");
-            console.error("Error fetching logs:", err);
+            logger.error("Logs", "Failed to fetch logs", err);
         } finally {
             setLoading(false);
         }

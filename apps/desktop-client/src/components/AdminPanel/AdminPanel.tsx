@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import styles from "./AdminPanel.module.css";
 import { apiService, ActiveSession } from "../../services/api";
+import { useToast } from "../Toast";
+import { logger } from "../../services/logger";
 
 export const AdminPanel: React.FC = () => {
+    const { showToast } = useToast();
     const [sessions, setSessions] = useState<ActiveSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -14,7 +17,7 @@ export const AdminPanel: React.FC = () => {
             setError("");
         } catch (err) {
             setError("Failed to load sessions");
-            console.error("Error fetching sessions:", err);
+            logger.error("AdminPanel", "Error fetching sessions:", err);
         } finally {
             setLoading(false);
         }
@@ -33,10 +36,10 @@ export const AdminPanel: React.FC = () => {
             try {
                 await apiService.terminateSession(sessionId);
                 setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-                alert(`Forcibly stopped session for user: ${username}`);
+                showToast("success", `Сессия пользователя ${username} принудительно завершена`);
             } catch (err) {
-                alert(`Failed to terminate session: ${err}`);
-                console.error("Error terminating session:", err);
+                showToast("error", "Не удалось завершить сессию", String(err));
+                logger.error("AdminPanel", "Error terminating session:", err);
             }
         }
     };

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styles from "./Login.module.css";
 import { apiService } from "../../services/api";
+import { logger } from "../../services/logger";
 
 interface LoginProps {
     onLoginSuccess: (host: string, port: number, username: string) => void;
@@ -32,7 +33,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             }
         } catch (err) {
             setError("Cannot connect to API server. Please ensure it's running.");
-            console.error("Login error:", err);
+            logger.error("Login", "Login request failed", err);
         } finally {
             setLoading(false);
         }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./ActiveSession.module.css";
 import { apiService, AppInfo } from "../../services/api";
+import { useToast } from "../Toast";
+import { logger } from "../../services/logger";
 // @ts-ignore
 import RFB from "@novnc/novnc";
 
@@ -13,6 +15,7 @@ interface ActiveSessionProps {
 }
 
 export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port, username, displayId, onDisconnect }) => {
+    const { showToast } = useToast();
     const [fps, setFps] = useState(30);
     const [bitrate, setBitrate] = useState(2400);
     const [latency, setLatency] = useState(12);
@@ -34,7 +37,8 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     setApps(res.applications || []);
                 })
                 .catch(err => {
-                    console.error("Failed to load applications:", err);
+                    logger.error("session", "Failed to load applications", err);
+                    showToast("error", "Не удалось загрузить список приложений");
                 })
                 .finally(() => {
                     setLoadingApps(false);
@@ -59,13 +63,13 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
 
             const res = await apiService.launchApplication(sessionId, command);
             if (res.success) {
-                alert(`Приложение "${command}" успешно запущено на удаленном хосте!`);
+                showToast("success", "Приложение запущено", `«${command}» выполняется на удалённом хосте.`);
             } else {
-                alert(`Ошибка при запуске: ${res.message}`);
+                showToast("error", "Ошибка при запуске", res.message);
             }
         } catch (e: any) {
-            console.error("Launch app error:", e);
-            alert(`Не удалось запустить приложение: ${e.message || e}`);
+            logger.error("session", "Launch app error", e);
+            showToast("error", "Не удалось запустить приложение", e.message || String(e));
         }
     };
 
@@ -87,13 +91,13 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             try {
                 rfbRef.current.disconnect();
             } catch (e) {
-                console.error(e);
+                logger.warn("session", "Error during VNC cleanup", e);
             }
             rfbRef.current = null;
         }
 
         const wsUrl = `ws://127.0.0.1:3001/api/ws/vnc?host=${host}&display=${displayId ?? 0}`;
-        console.log("Connecting noVNC to:", wsUrl);
+        logger.info("session", `Connecting noVNC to ${wsUrl}`);
 
         setConnectionStatus("connecting");
         setErrorMessage(null);
@@ -111,12 +115,12 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             rfbInstance.focusOnClick = true;
 
             rfbInstance.addEventListener("connect", () => {
-                console.log("noVNC connected successfully");
+                logger.info("session", "noVNC connected successfully");
                 setConnectionStatus("connected");
             });
 
             rfbInstance.addEventListener("disconnect", (e: any) => {
-                console.log("noVNC disconnected:", e);
+                logger.info("session", "noVNC disconnected", e?.detail);
                 setConnectionStatus("disconnected");
                 if (e.detail && e.detail.clean === false) {
                     setConnectionStatus("error");
@@ -134,7 +138,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             rfbInstance.resizeSession = false;
 
         } catch (err: any) {
-            console.error("Error creating RFB instance:", err);
+            logger.error("session", "Error creating RFB instance", err);
             setConnectionStatus("error");
             setErrorMessage(`Ошибка подключения: ${err.message || err}`);
         }
@@ -144,7 +148,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 try {
                     rfbRef.current.disconnect();
                 } catch (e) {
-                    console.error("Error disconnecting VNC:", e);
+                    logger.warn("session", "Error disconnecting VNC", e);
                 }
                 rfbRef.current = null;
             }
@@ -202,7 +206,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
         if (rfbRef.current) {
             rfbRef.current.clipboardPasteFrom(clipboardText);
         }
-        alert("Буфер обмена синхронизирован!");
+        showToast("success", "Буфер обмена синхронизирован");
     };
 
     return (
@@ -271,7 +275,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                         onClick={() => {
                             if (!document.fullscreenElement) {
                                 containerRef.current?.requestFullscreen().catch(err => {
-                                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                                    showToast("error", "Полноэкранный режим недоступен", err.message);
                                 });
                             } else {
                                 document.exitFullscreen();
