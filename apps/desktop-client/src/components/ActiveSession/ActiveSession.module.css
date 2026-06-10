@@ -604,3 +604,209 @@
 .retryButton:hover {
     background: #ff8e9e;
 }
+
+.toolButtonActive {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: rgba(0, 242, 254, 0.08);
+}
+
+.sessionOverview {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px;
+    flex-wrap: wrap;
+    background: radial-gradient(circle at 30% 20%, rgba(0, 242, 254, 0.05), transparent 45%), rgba(9, 10, 15, 0.88);
+    backdrop-filter: blur(8px);
+    z-index: 15;
+    overflow-y: auto;
+    animation: overviewIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overviewIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.overviewCard,
+.chromeCard {
+    background: rgba(25, 27, 38, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px 28px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.overviewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.overviewKicker {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+}
+
+.overviewTitle {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.overviewText {
+    margin: 0 0 18px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.healthBadge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill, 999px);
+    white-space: nowrap;
+}
+
+.healthBadge.good {
+    background: rgba(158, 206, 106, 0.15);
+    color: var(--color-success);
+    border: 1px solid rgba(158, 206, 106, 0.35);
+}
+
+.healthBadge.warn {
+    background: rgba(255, 158, 100, 0.12);
+    color: #ff9e64;
+    border: 1px solid rgba(255, 158, 100, 0.35);
+}
+
+.healthBadge.danger {
+    background: rgba(247, 118, 142, 0.12);
+    color: var(--color-danger);
+    border: 1px solid rgba(247, 118, 142, 0.4);
+}
+
+.detailGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.detailItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: rgba(15, 16, 22, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.detailItem span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+}
+
+.detailItem strong {
+    font-size: 0.85rem;
+    font-family: monospace;
+    color: var(--color-text-primary);
+    word-break: break-all;
+}
+
+.chromeTitle {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+    margin-bottom: 14px;
+}
+
+.modeSwitcher {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.modeButton {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    text-align: left;
+    background: rgba(15, 16, 22, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--duration-base, 0.2s) var(--ease-spring, ease);
+}
+
+.modeButton span {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.modeButton small {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.modeButton:hover {
+    border-color: rgba(0, 242, 254, 0.4);
+    transform: translateY(-1px);
+}
+
+.modeButtonActive {
+    border-color: var(--color-accent);
+    background: rgba(0, 242, 254, 0.07);
+    box-shadow: 0 0 0 1px rgba(0, 242, 254, 0.25);
+}
+
+.modeButtonActive span {
+    color: var(--color-accent);
+}
+
+.chromeActions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.secondaryAction {
+    flex: 1;
+    min-width: 140px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: var(--color-text-primary);
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--duration-base, 0.2s) var(--ease-spring, ease);
+}
+
+.secondaryAction:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}

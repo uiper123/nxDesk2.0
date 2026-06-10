@@ -1,8 +1,17 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import styles from "./ActiveSession.module.css";
-import { apiService, AppInfo } from "../../services/api";
+import { apiService, AppInfo, API_BASE_URL } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
+import {
+    buildRemoteDesktopUrls,
+    buildUploadUrl,
+    classifyConnectionHealth,
+    ConnectionMode,
+    formatDuration,
+    formatHostEndpoint,
+    getConnectionModeDetails,
+} from "./remoteAccess";
 // @ts-ignore
 import RFB from "@novnc/novnc";
 
@@ -22,12 +31,71 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
     const [scale, setScale] = useState<number | "auto">("auto");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [clipboardText, setClipboardText] = useState("Copied from host...");
+    const [clipboardSynced, setClipboardSynced] = useState(false);
     const [showFileTransfer, setShowFileTransfer] = useState(false);
     const [showAppManager, setShowAppManager] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<{name: string, status: string}[]>([]);
     const [apps, setApps] = useState<AppInfo[]>([]);
     const [loadingApps, setLoadingApps] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [connectionMode, setConnectionMode] = useState<ConnectionMode>("balanced");
+    const [showOverview, setShowOverview] = useState(false);
+
+    const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("connecting");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isCaptured, setIsCaptured] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const [connectedAt, setConnectedAt] = useState<number | null>(null);
+    const [sessionSeconds, setSessionSeconds] = useState(0);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const rfbContainerRef = useRef<HTMLDivElement>(null);
+    const rfbRef = useRef<any>(null);
+    const scaleRef = useRef<number | "auto">("auto");
+
+    const remoteUrls = useMemo(() => buildRemoteDesktopUrls(API_BASE_URL, host, displayId ?? 0), [host, displayId]);
+    const modeDetails = useMemo(() => getConnectionModeDetails(connectionMode), [connectionMode]);
+    const connectionHealth = useMemo(
+        () =>
+            classifyConnectionHealth({
+                status: connectionStatus,
+                retryCount,
+                sessionSeconds,
+                clipboardSynced,
+            }),
+        [clipboardSynced, connectionStatus, retryCount, sessionSeconds],
+    );
+    const endpointSummary = useMemo(
+        () => formatHostEndpoint(host, _port, displayId),
+        [host, _port, displayId],
+    );
+
+    useEffect(() => {
+        scaleRef.current = scale;
+        if (rfbRef.current) {
+            rfbRef.current.scaleViewport = scale === "auto";
+        }
+    }, [scale]);
+
+    useEffect(() => {
+        if (connectionStatus === "connected") {
+            if (!connectedAt) {
+                setConnectedAt(Date.now());
+            }
+            return;
+        }
+
+        setConnectedAt(null);
+        setSessionSeconds(0);
+    }, [connectedAt, connectionStatus]);
+
+    useEffect(() => {
+        if (!connectedAt) return;
+        const timer = setInterval(() => {
+            setSessionSeconds(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [connectedAt]);
 
     useEffect(() => {
         if (showAppManager) {
@@ -44,7 +112,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     setLoadingApps(false);
                 });
         }
-    }, [showAppManager, host]);
+    }, [showAppManager, host, showToast]);
 
     const handleLaunchApp = async (command: string) => {
         try {
@@ -52,7 +120,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             const matching = activeSessions.find(
                 s => s.host_ip === host && s.username === username
             );
-            
+
             let sessionId = matching?.id;
             if (!sessionId) {
                 const sysDisplay = activeSessions.find(
@@ -73,20 +141,10 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
         }
     };
 
-    const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("connecting");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [isCaptured, setIsCaptured] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
-
-    const containerRef = useRef<HTMLDivElement>(null);
-    const rfbContainerRef = useRef<HTMLDivElement>(null);
-    const rfbRef = useRef<any>(null);
-
     // Initialize noVNC connection
     useEffect(() => {
         if (!rfbContainerRef.current) return;
 
-        // Clean up any existing connection first
         if (rfbRef.current) {
             try {
                 rfbRef.current.disconnect();
@@ -96,11 +154,12 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             rfbRef.current = null;
         }
 
-        const wsUrl = `ws://127.0.0.1:3001/api/ws/vnc?host=${host}&display=${displayId ?? 0}`;
+        const wsUrl = remoteUrls.wsUrl;
         logger.info("session", `Connecting noVNC to ${wsUrl}`);
 
         setConnectionStatus("connecting");
         setErrorMessage(null);
+        setClipboardSynced(false);
 
         const options = {
             shared: true,
@@ -131,12 +190,12 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             rfbInstance.addEventListener("clipboard", (e: any) => {
                 if (e.detail && e.detail.text) {
                     setClipboardText(e.detail.text);
+                    setClipboardSynced(true);
                 }
             });
 
-            rfbInstance.scaleViewport = scale === "auto";
+            rfbInstance.scaleViewport = scaleRef.current === "auto";
             rfbInstance.resizeSession = false;
-
         } catch (err: any) {
             logger.error("session", "Error creating RFB instance", err);
             setConnectionStatus("error");
@@ -153,9 +212,14 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 rfbRef.current = null;
             }
         };
-    }, [host, displayId, retryCount]);
+    }, [host, displayId, remoteUrls.wsUrl, retryCount]);
 
-    // Handle container click (focus input capture)
+    const handleSelectMode = (mode: ConnectionMode) => {
+        setConnectionMode(mode);
+        const details = getConnectionModeDetails(mode);
+        setScale(details.recommendedScale === "fit" ? "auto" : details.recommendedScale);
+    };
+
     const handleContainerClick = () => {
         setIsCaptured(true);
         if (rfbRef.current) {
@@ -163,10 +227,8 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
         }
     };
 
-    // Keyboard capture for Right Ctrl to exit focus
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Right Ctrl: Release capture
             if (e.key === "Control" && e.location === 2) {
                 if (rfbRef.current) {
                     rfbRef.current.blur();
@@ -181,7 +243,6 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
         };
     }, []);
 
-    // Telemetry simulation
     useEffect(() => {
         const interval = setInterval(() => {
             if (connectionStatus === "connected") {
@@ -199,23 +260,42 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
 
     const handleRetry = () => {
         setRetryCount(prev => prev + 1);
+        setConnectionStatus("connecting");
     };
 
-    const handleCopyClipboard = () => {
-        navigator.clipboard.writeText(clipboardText);
-        if (rfbRef.current) {
-            rfbRef.current.clipboardPasteFrom(clipboardText);
+    const handleCopyClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(clipboardText);
+            if (rfbRef.current) {
+                rfbRef.current.clipboardPasteFrom(clipboardText);
+            }
+            setClipboardSynced(true);
+            showToast("success", "Буфер обмена синхронизирован");
+        } catch (err) {
+            logger.warn("session", "Clipboard sync failed", err);
+            showToast("error", "Не удалось синхронизировать буфер обмена");
         }
-        showToast("success", "Буфер обмена синхронизирован");
     };
+
+    const handleCopyEndpoint = async () => {
+        try {
+            await navigator.clipboard.writeText(remoteUrls.wsUrl);
+            showToast("success", "Адрес VNC-клиента скопирован");
+        } catch (err) {
+            logger.warn("session", "Endpoint copy failed", err);
+            showToast("error", "Не удалось скопировать адрес подключения");
+        }
+    };
+
+    const currentScale = scale === "auto" ? "Auto-fit" : `${scale}%`;
+    const overviewVisible = showOverview || connectionStatus !== "connected";
 
     return (
         <div className={`${styles.container} ${isFullscreen ? styles.fullscreen : ""}`}>
-            {/* Top Toolbar */}
             <div className={styles.toolbar}>
                 <div className={styles.meta}>
                     <span className={styles.hostBadge}>{username}@{host}</span>
-                    <span className={styles.displayBadge}>Display :{displayId ?? "?"} (Astra SE)</span>
+                    <span className={styles.displayBadge}>Display :{displayId ?? "?"} · {endpointSummary}</span>
                 </div>
 
                 <div className={styles.telemetry}>
@@ -235,13 +315,13 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                         <div className={styles.bar}></div>
                         <div className={styles.bar}></div>
                         <div className={styles.bar}></div>
-                        <span className={styles.qualText}>Excellent</span>
+                        <span className={styles.qualText}>{modeDetails.label}</span>
                     </div>
                 </div>
 
                 <div className={styles.controls}>
-                    <button 
-                        className={styles.toolButton} 
+                    <button
+                        className={styles.toolButton}
                         onClick={() => {
                             setShowFileTransfer(prev => !prev);
                             setShowAppManager(false);
@@ -249,8 +329,8 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     >
                         📁 File Transfer
                     </button>
-                    <button 
-                        className={styles.toolButton} 
+                    <button
+                        className={styles.toolButton}
                         onClick={() => {
                             setShowAppManager(prev => !prev);
                             setShowFileTransfer(false);
@@ -258,20 +338,38 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     >
                         🚀 Менеджер приложений
                     </button>
-                    <button 
-                        className={styles.toolButton} 
+                    <button
+                        className={styles.toolButton}
                         onClick={() => {
                             setScale(s => {
-                                const next = s === "auto" ? 100 : s === 100 ? 75 : s === 75 ? 50 : "auto";
+                                const next = s === "auto" ? 100 : s === 100 ? 90 : s === 90 ? 75 : s === 75 ? 50 : "auto";
                                 if (rfbRef.current) rfbRef.current.scaleViewport = next === "auto";
                                 return next;
                             });
                         }}
                     >
-                        🔍 Scale: {scale === "auto" ? "Auto" : `${scale}%`}
+                        🔍 Scale: {currentScale}
                     </button>
-                    <button 
-                        className={styles.toolButton} 
+                    <button
+                        className={styles.toolButton}
+                        onClick={() => setConnectionMode(prev => prev === "performance" ? "balanced" : prev === "balanced" ? "clarity" : "performance")}
+                    >
+                        🧭 Mode: {modeDetails.label}
+                    </button>
+                    <button
+                        className={`${styles.toolButton} ${showOverview ? styles.toolButtonActive : ""}`}
+                        onClick={() => setShowOverview(prev => !prev)}
+                    >
+                        ℹ️ Session info
+                    </button>
+                    <button
+                        className={styles.toolButton}
+                        onClick={handleCopyEndpoint}
+                    >
+                        🔗 Copy endpoint
+                    </button>
+                    <button
+                        className={styles.toolButton}
                         onClick={() => {
                             if (!document.fullscreenElement) {
                                 containerRef.current?.requestFullscreen().catch(err => {
@@ -291,32 +389,78 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 </div>
             </div>
 
-            {/* Main Content Area */}
             <div className={styles.content}>
+                {overviewVisible && (
+                <div className={styles.sessionOverview}>
+                    <div className={styles.overviewCard}>
+                        <div className={styles.overviewHeader}>
+                            <div>
+                                <div className={styles.overviewKicker}>Remote access tunnel</div>
+                                <h3 className={styles.overviewTitle}>{connectionHealth.title}</h3>
+                            </div>
+                            <span className={`${styles.healthBadge} ${styles[connectionHealth.tone]}`}>
+                                {connectionStatus.toUpperCase()}
+                            </span>
+                        </div>
+                        <p className={styles.overviewText}>
+                            {connectionStatus === "error" && errorMessage ? errorMessage : connectionHealth.detail}
+                        </p>
+                        <div className={styles.detailGrid}>
+                            <div className={styles.detailItem}>
+                                <span>Uptime</span>
+                                <strong>{formatDuration(sessionSeconds)}</strong>
+                            </div>
+                            <div className={styles.detailItem}>
+                                <span>WebSocket</span>
+                                <strong>{remoteUrls.wsUrl}</strong>
+                            </div>
+                            <div className={styles.detailItem}>
+                                <span>Upload API</span>
+                                <strong>{buildUploadUrl(API_BASE_URL, "file")}</strong>
+                            </div>
+                            <div className={styles.detailItem}>
+                                <span>Mode</span>
+                                <strong>{modeDetails.badge}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles.chromeCard}>
+                        <div className={styles.chromeTitle}>Connection mode</div>
+                        <div className={styles.modeSwitcher}>
+                            {(["performance", "balanced", "clarity"] as ConnectionMode[]).map(mode => {
+                                const details = getConnectionModeDetails(mode);
+                                const active = mode === connectionMode;
+                                return (
+                                    <button
+                                        key={mode}
+                                        className={`${styles.modeButton} ${active ? styles.modeButtonActive : ""}`}
+                                        onClick={() => handleSelectMode(mode)}
+                                    >
+                                        <span>{details.label}</span>
+                                        <small>{details.description}</small>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className={styles.chromeActions}>
+                            <button className={styles.secondaryAction} onClick={handleRetry}>
+                                Reconnect
+                            </button>
+                            <button className={styles.secondaryAction} onClick={() => setScale(modeDetails.recommendedScale === "fit" ? "auto" : modeDetails.recommendedScale)}>
+                                Apply recommended scale
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                )}
+
                 {isCaptured && (
                     <div className={styles.captureHint}>
                         Захват ввода активен. Нажмите <b>Правый Ctrl</b> для выхода.
                     </div>
                 )}
 
-                {connectionStatus === "connecting" && (
-                    <div className={styles.connectingText}>
-                        <div className={styles.spinner}></div>
-                        <span>Подключение к {username}@{host} (Дисплей :{displayId ?? 0})...</span>
-                    </div>
-                )}
-
-                {connectionStatus === "error" && (
-                    <div className={styles.errorText}>
-                        <div className={styles.errorIcon}>⚠️</div>
-                        <div className={styles.errorMessage}>{errorMessage}</div>
-                        <button className={styles.retryButton} onClick={handleRetry}>
-                            Повторить попытку
-                        </button>
-                    </div>
-                )}
-
-                {/* Virtual Desktop Display Canvas */}
                 <div 
                     ref={containerRef}
                     className={styles.canvasContainer}
@@ -347,7 +491,6 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     />
                 </div>
 
-                {/* Slide-out File Transfer Sidebar */}
                 {showFileTransfer && (
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarHeader}>
@@ -365,7 +508,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                                     for (const file of files) {
                                         setUploadedFiles(prev => [...prev, { name: file.name, status: "Загрузка..." }]);
                                         try {
-                                            const res = await fetch(`http://127.0.0.1:3001/api/upload/${encodeURIComponent(file.name)}`, {
+                                            const res = await fetch(buildUploadUrl(API_BASE_URL, file.name), {
                                                 method: "POST",
                                                 body: file
                                             });
@@ -398,7 +541,6 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     </div>
                 )}
 
-                {/* Slide-out Application Manager Sidebar */}
                 {showAppManager && (
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarHeader}>
@@ -460,7 +602,6 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 )}
             </div>
 
-            {/* Bottom Clipboard Sync Bar */}
             <div className={styles.clipboardBar}>
                 <span className={styles.clipLabel}>Clipboard Status:</span>
                 <input 
@@ -470,7 +611,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     className={styles.clipInput}
                 />
                 <button className={styles.syncButton} onClick={handleCopyClipboard}>
-                    Sync to Local Clipboard
+                    {clipboardSynced ? "Clipboard synced" : "Sync to Local Clipboard"}
                 </button>
             </div>
         </div>
