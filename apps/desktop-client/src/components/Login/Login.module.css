@@ -1,156 +1,162 @@
 .loginContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: var(--color-bg-deep);
-    font-family: var(--font-sans);
-    color: var(--color-text-primary);
-    padding: 20px;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(154, 167, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, #07090c 0%, #0b0e13 100%);
+  color: var(--color-text-primary);
 }
 
 .loginCard {
-    background: var(--color-bg-surface);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-md);
-    padding: 40px;
-    width: 100%;
-    max-width: 440px;
-    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  width: min(100%, 440px);
+  padding: 36px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: rgba(17, 21, 28, 0.9);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-raised);
+  animation: fadeIn 0.45s var(--ease-spring);
 }
 
 .header {
-    text-align: center;
-    margin-bottom: 30px;
+  margin-bottom: 28px;
+  text-align: left;
 }
 
 .title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0 0 8px 0;
-    color: var(--color-accent);
-    letter-spacing: -0.5px;
+  margin: 0 0 8px;
+  font-size: 1.9rem;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.04em;
 }
 
 .subtitle {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    margin: 0;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .inputGroup {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
 .inputGroup label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .inputGroup input {
-    background: #07080c;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: var(--radius-md);
-    padding: 12px 16px;
-    color: var(--color-text-primary);
-    font-size: 0.95rem;
-    transition: border-color 0.2s ease;
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 10, 14, 0.95);
+  color: var(--color-text-primary);
+  transition: border-color var(--duration-base) ease, box-shadow var(--duration-base) ease, background var(--duration-base) ease;
 }
 
 .inputGroup input:focus {
-    outline: none;
-    border-color: var(--color-accent);
-    background: #07080c;
+  outline: none;
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 4px rgba(154, 167, 255, 0.12);
 }
 
 .row {
-    display: grid;
-    grid-template-columns: 80px 1fr;
-    gap: 16px;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 12px;
 }
 
 .loginButton {
-    background: var(--color-accent);
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 14px;
-    color: #0f1016;
-    font-weight: 700;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    width: 100%;
-    margin-top: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-strong) 100%);
+  color: #0b0e13;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-spring), opacity var(--duration-base) ease, box-shadow var(--duration-base) ease;
+  box-shadow: 0 12px 24px rgba(154, 167, 255, 0.16);
 }
 
 .loginButton:hover:not(:disabled) {
-    background: var(--color-accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(154, 167, 255, 0.22);
 }
 
 .loginButton:active:not(:disabled) {
-    background: #0097a7;
+  transform: translateY(0);
 }
 
 .loginButton:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .errorMessage {
-    background: rgba(247, 118, 142, 0.15);
-    border: 1px solid var(--color-danger);
-    color: var(--color-danger);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-    text-align: center;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-border);
+  background: rgba(217, 123, 138, 0.1);
+  color: #f0b3be;
+  font-size: 0.9rem;
 }
 
 .footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 30px;
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
 }
 
 .badge {
-    background: rgba(0, 242, 254, 0.1);
-    color: var(--color-accent);
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+  font-weight: 700;
 }
 
 .spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(15, 16, 22, 0.2);
-    border-radius: 50%;
-    border-top-color: #0f1016;
-    animation: spin 0.8s linear infinite;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-top-color: var(--color-accent);
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

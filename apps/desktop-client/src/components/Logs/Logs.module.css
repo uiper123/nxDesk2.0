@@ -1,134 +1,131 @@
 .container {
-    padding: 24px;
-    font-family: var(--font-sans);
-    color: var(--color-text-primary);
+  padding: 24px;
+  color: var(--color-text-primary);
 }
 
 .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin: 0;
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 .actions {
-    display: flex;
-    gap: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select,
+.exportBtn,
+.clearBtn {
+  min-height: 40px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .select {
-    background: rgba(15, 16, 22, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    color: var(--color-text-primary);
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    outline: none;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.clearBtn,
+.exportBtn {
+  padding: 0 14px;
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) ease, background var(--duration-base) ease, color var(--duration-base) ease;
 }
 
 .clearBtn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    color: var(--color-text-secondary);
-    padding: 8px 16px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-spring);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 .clearBtn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
-}
-
-.logBox {
-    background: rgba(15, 16, 22, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    padding: 20px;
-    font-family: monospace;
-    font-size: 0.85rem;
-    height: 400px;
-    overflow-y: auto;
-}
-
-.logRow {
-    display: flex;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.logRow:last-child {
-    border-bottom: none;
-}
-
-.time {
-    color: var(--color-text-muted);
-    margin-right: 12px;
-}
-
-.badge {
-    padding: 2px 6px;
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    font-size: 0.75rem;
-    margin-right: 16px;
-    min-width: 50px;
-    text-align: center;
-}
-
-.info .badge {
-    background: rgba(0, 242, 254, 0.1);
-    color: var(--color-accent);
-}
-
-.warn .badge {
-    background: rgba(255, 158, 100, 0.15);
-    color: #ff9e64;
-}
-
-.error .badge {
-    background: rgba(247, 118, 142, 0.15);
-    color: var(--color-danger);
-}
-
-.audit .badge {
-    background: rgba(158, 206, 106, 0.15);
-    color: var(--color-success);
-}
-
-.msg {
-    color: #a9b1d6;
-}
-
-.empty {
-    text-align: center;
-    color: var(--color-text-muted);
-    padding-top: 150px;
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-border);
 }
 
 .exportBtn {
-    background: rgba(0, 242, 254, 0.08);
-    border: 1px solid rgba(0, 242, 254, 0.2);
-    border-radius: var(--radius-sm);
-    color: var(--color-accent, #00f2fe);
-    padding: 8px 14px;
-    font-weight: 600;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all var(--duration-fast) ease;
+  border: 1px solid var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
 }
 
 .exportBtn:hover {
-    background: rgba(0, 242, 254, 0.18);
-    transform: translateY(-1px);
+  transform: translateY(-1px);
+  background: var(--color-accent);
+  color: #0b0e13;
+}
+
+.logBox {
+  height: min(70vh, 680px);
+  padding: 20px;
+  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  font-family: var(--font-mono);
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logRow:last-child {
+  border-bottom: 0;
+}
+
+.time {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.badge {
+  min-width: 56px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.info .badge { background: rgba(154, 167, 255, 0.12); color: var(--color-accent); }
+.warn .badge { background: rgba(243, 186, 90, 0.12); color: var(--color-warning); }
+.error .badge { background: rgba(217, 123, 138, 0.12); color: var(--color-danger); }
+.audit .badge { background: rgba(136, 191, 118, 0.12); color: var(--color-success); }
+
+.msg {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  color: var(--color-text-muted);
 }

@@ -1,92 +1,102 @@
 .container {
-    padding: 24px;
-    font-family: var(--font-sans);
-    color: var(--color-text-primary);
-    max-width: 680px;
+  padding: 24px;
+  max-width: 740px;
+  color: var(--color-text-primary);
 }
 
 .title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin-bottom: 24px;
+  margin: 0 0 24px;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 .section {
-    background: rgba(25, 27, 38, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
 }
 
 .sectionTitle {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-accent);
-    margin: 0 0 16px 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  margin: 0 0 16px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
 }
 
 .settingRow {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .settingRow:last-child {
-    border-bottom: none;
+  border-bottom: 0;
 }
 
 .settingInfo {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .settingInfo label {
-    font-size: 0.95rem;
-    font-weight: 600;
-    margin-bottom: 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .settingInfo span {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.settingRow select,
+.checkbox {
+  min-height: 40px;
 }
 
 .settingRow select {
-    background: rgba(15, 16, 22, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    color: var(--color-text-primary);
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    outline: none;
+  min-width: 220px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--color-text-primary);
+  outline: none;
 }
 
 .checkbox {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--color-accent);
-    cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
 }
 
 .saveButton {
-    background: linear-gradient(135deg, var(--color-accent) 0%, #4facfe 100%);
-    border: none;
-    border-radius: 8px;
-    padding: 12px 24px;
-    color: #0f1016;
-    font-weight: 700;
-    font-size: 0.95rem;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
-    transition: transform 0.2s ease;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-strong) 100%);
+  color: #0b0e13;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-spring), opacity var(--duration-base) ease;
 }
 
 .saveButton:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4);
+  transform: translateY(-1px);
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
