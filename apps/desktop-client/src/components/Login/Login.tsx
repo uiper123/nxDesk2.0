@@ -49,8 +49,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 {error && <div className={styles.errorMessage}>{error}</div>}
 
                 <div className={styles.inputGroup}>
-                    <label>Username</label>
+                    <label htmlFor="login-username">Username</label>
                     <input 
+                        id="login-username"
                         type="text" 
                         value={username} 
                         onChange={(e) => setUsername(e.target.value)} 
@@ -59,8 +60,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <label>Password / Private Key passphrase</label>
+                    <label htmlFor="login-password">Password / Private Key passphrase</label>
                     <input 
+                        id="login-password"
                         type="password" 
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 

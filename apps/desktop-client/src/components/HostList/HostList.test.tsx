@@ -1,8 +1,43 @@
-import React from "react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { HostList } from "./HostList";
+import { apiService, Host } from "../../services/api";
 
-describe("HostList Component", () => {
-    it("should display mock hosts registry correctly", () => {
-        const listLen = 4;
-        expect(listLen).toBe(4);
-    });
+const hosts: Host[] = [
+  {
+    id: "h1",
+    name: "Astra Workstation 01",
+    ip: "10.0.0.5",
+    port: 2222,
+    status: "online",
+    active_sessions: 1,
+    operating_system: "Astra Linux 1.8",
+  },
+  {
+    id: "h2",
+    name: "Astra Workstation 02",
+    ip: "10.0.0.6",
+    port: 2222,
+    status: "offline",
+    active_sessions: 0,
+    operating_system: "Astra Linux 1.8",
+  },
+];
+
+describe("HostList", () => {
+  it("renders hosts returned by the API", async () => {
+    vi.spyOn(apiService, "getHosts").mockResolvedValue(hosts);
+    render(<HostList onSelectHost={vi.fn()} />);
+
+    expect(await screen.findByText("Astra Workstation 01")).toBeInTheDocument();
+    expect(screen.getByText("Astra Workstation 02")).toBeInTheDocument();
+  });
+
+  it("shows an error state when the host registry is unreachable", async () => {
+    vi.spyOn(apiService, "getHosts").mockRejectedValue(new Error("down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<HostList onSelectHost={vi.fn()} />);
+
+    expect(await screen.findByText(/failed to load hosts/i)).toBeInTheDocument();
+  });
 });

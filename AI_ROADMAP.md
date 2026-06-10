@@ -4,7 +4,7 @@
 
 ## Технический долг
 
-- [ ] **T1. Реальная тестовая инфраструктура фронтенда.** Установить Vitest + Testing Library + jsdom, заменить фейковые `*.test.tsx`-заглушки на настоящие тесты компонентов (Login, Logs, Settings, HostList). Добавить `npm test` в CI-цепочку.
+- [x] **T1. Реальная тестовая инфраструктура фронтенда.** Установить Vitest + Testing Library + jsdom, заменить фейковые `*.test.tsx`-заглушки на настоящие тесты компонентов (Login, Logs, Settings, HostList). Добавить `npm test` в CI-цепочку.
 - [ ] **T2. Рефакторинг API-клиента (`services/api.ts`).** Таймауты через AbortController, типизированный класс `ApiError` с телом ответа сервера, конфигурируемый базовый URL, единая точка обработки сетевых ошибок.
 - [ ] **T3. Чистка Rust warnings.** Убрать dead_code в `api-server` (HostStatus::Busy и др.), прогнать `cargo clippy`, привести workspace к сборке без предупреждений.
 - [ ] **T4. Убрать мусор из фронтенда.** Удалить `console.log`/`console.error` из production-кода (заменить на централизованный logger), убрать `alert()` из Settings.
