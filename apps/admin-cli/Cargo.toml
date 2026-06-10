@@ -1,0 +1,14 @@
+[package]
+name = "admin-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+
+# Workspace internal crates
+config = { path = "../../crates/config" }
+audit = { path = "../../crates/audit" }
+shared-types = { path = "../../crates/shared-types" }

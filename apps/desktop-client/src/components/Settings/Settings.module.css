@@ -1,0 +1,92 @@
+.container {
+    padding: 24px;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    color: #e0e0e6;
+    max-width: 680px;
+}
+
+.title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+}
+
+.section {
+    background: rgba(25, 27, 38, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.sectionTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #00f2fe;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.settingRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.settingRow:last-child {
+    border-bottom: none;
+}
+
+.settingInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.settingInfo label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.settingInfo span {
+    font-size: 0.8rem;
+    color: #565f89;
+}
+
+.settingRow select {
+    background: rgba(15, 16, 22, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: #e0e0e6;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #00f2fe;
+    cursor: pointer;
+}
+
+.saveButton {
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: #0f1016;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.saveButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4);
+}

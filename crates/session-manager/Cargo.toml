@@ -1,0 +1,15 @@
+[package]
+name = "session-manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+# Workspace internal crates
+config = { path = "../config" }
+os-pal = { path = "../os-pal" }
+shared-types = { path = "../shared-types" }

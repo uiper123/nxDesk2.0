@@ -1,0 +1,519 @@
+use axum::{
+    extract::{Path, State, Query},
+    http::StatusCode,
+    response::Json,
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+};
+use futures_util::{SinkExt, StreamExt};
+use tokio::net::TcpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::sync::Arc;
+use tracing::info;
+
+use crate::models::*;
+use crate::state::AppState;
+
+pub async fn health_check() -> &'static str {
+    "OK"
+}
+
+pub async fn login(
+    State(_state): State<Arc<AppState>>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, StatusCode> {
+    info!("Admin login attempt for user: {}", payload.username);
+
+    // В реальной системе здесь будет проверка админа (например, по PAM или локальной БД)
+    if !payload.username.is_empty() {
+        Ok(Json(LoginResponse {
+            success: true,
+            message: "Authentication successful".to_string(),
+            user: Some(UserInfo {
+                username: payload.username,
+                role: "Operator".to_string(),
+            }),
+        }))
+    } else {
+        Ok(Json(LoginResponse {
+            success: false,
+            message: "Invalid credentials".to_string(),
+            user: None,
+        }))
+    }
+}
+
+pub async fn start_session(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, StatusCode> {
+    info!("Starting remote session for user: {}", payload.username);
+
+    if !payload.username.is_empty() && !payload.host.is_empty() {
+        let mut port = 22;
+        {
+            let hosts = state.hosts.read().await;
+            if let Some(h) = hosts.iter().find(|h| h.ip == payload.host) {
+                port = h.port;
+            }
+        }
+
+        match state
+            .discovery
+            .start_session_on_host(&payload.host, port, &payload.username)
+            .await
+        {
+            Ok(session) => {
+                info!(
+                    "Successfully started X11 session for {} on {}",
+                    payload.username, payload.host
+                );
+                let mut sessions = state.sessions.write().await;
+                sessions.push(session);
+
+                Ok(Json(LoginResponse {
+                    success: true,
+                    message: "Session started".to_string(),
+                    user: Some(UserInfo {
+                        username: payload.username,
+                        role: "Operator".to_string(),
+                    }),
+                }))
+            }
+            Err(e) => {
+                let mut session_active = false;
+                {
+                    let sessions = state.sessions.read().await;
+                    if sessions
+                        .iter()
+                        .any(|s| s.host_ip == payload.host && s.username == payload.username)
+                    {
+                        session_active = true;
+                    }
+                }
+
+                if session_active {
+                    Ok(Json(LoginResponse {
+                        success: true,
+                        message: "Session already active".to_string(),
+                        user: Some(UserInfo {
+                            username: payload.username,
+                            role: "Operator".to_string(),
+                        }),
+                    }))
+                } else {
+                    tracing::warn!("Could not start session: {}", e);
+                    Ok(Json(LoginResponse {
+                        success: false,
+                        message: format!("Failed to establish session: {}", e),
+                        user: None,
+                    }))
+                }
+            }
+        }
+    } else {
+        Ok(Json(LoginResponse {
+            success: false,
+            message: "Invalid payload".to_string(),
+            user: None,
+        }))
+    }
+}
+
+pub async fn get_hosts(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Host>>, StatusCode> {
+    let hosts = state.hosts.read().await;
+    Ok(Json(hosts.clone()))
+}
+
+#[derive(serde::Deserialize)]
+pub struct AddHostRequest {
+    pub name: String,
+    pub ip: String,
+    pub port: u16,
+}
+
+pub async fn get_discovered_hosts(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Host>>, StatusCode> {
+    let hosts = state.discovered_hosts.read().await;
+    Ok(Json(hosts.clone()))
+}
+
+pub async fn add_host(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<AddHostRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let mut hosts = state.hosts.write().await;
+    
+    // Check for duplicates
+    if hosts.iter().any(|h| h.ip == payload.ip) {
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "message": "Host with this IP already exists in registry"
+        })));
+    }
+    
+    let next_id = (hosts.len() + 1).to_string();
+    hosts.push(Host {
+        id: next_id,
+        name: payload.name.clone(),
+        ip: payload.ip.clone(),
+        port: payload.port,
+        status: crate::models::HostStatus::Offline,
+        active_sessions: 0,
+        operating_system: "Unknown".to_string(),
+    });
+    
+    // Try to save to hosts.toml
+    let toml_str = "[[hosts]]\n".to_string() + &hosts.iter().map(|h| {
+        format!("name = \"{}\"\nip = \"{}\"\nssh_port = {}\n", h.name, h.ip, h.port)
+    }).collect::<Vec<_>>().join("\n[[hosts]]\n");
+    
+    let _ = std::fs::write("hosts.toml", toml_str);
+    
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Host added"
+    })))
+}
+
+pub async fn get_active_sessions(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<ActiveSession>>, StatusCode> {
+    let sessions = state.sessions.read().await;
+    Ok(Json(sessions.clone()))
+}
+
+pub async fn terminate_session(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    info!("Terminating session: {}", session_id);
+
+    // Find the session to know its host_ip
+    let host_ip = {
+        let sessions = state.sessions.read().await;
+        sessions
+            .iter()
+            .find(|s| s.id == session_id)
+            .map(|s| s.host_ip.clone())
+    };
+
+    if let Some(ip) = host_ip {
+        // Send command to the host to terminate
+        let mut port = 22;
+        {
+            let hosts = state.hosts.read().await;
+            if let Some(h) = hosts.iter().find(|h| h.ip == ip) {
+                port = h.port;
+            }
+        }
+        if let Err(e) = state
+            .discovery
+            .stop_session_on_host(&ip, port, &session_id)
+            .await
+        {
+            tracing::error!("Failed to stop session {} on {}: {}", session_id, ip, e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+
+        // Remove from local state
+        let mut sessions = state.sessions.write().await;
+        sessions.retain(|s| s.id != session_id);
+
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "message": format!("Session {} terminated on {}", session_id, ip)
+        })))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+pub async fn get_logs(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<LogEntry>>, StatusCode> {
+    let logs = state.logs.read().await;
+    Ok(Json(logs.clone()))
+}
+
+pub async fn get_settings(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Settings>, StatusCode> {
+    let settings = state.settings.read().await;
+    Ok(Json(settings.clone()))
+}
+
+pub async fn update_settings(
+    State(state): State<Arc<AppState>>,
+    Json(new_settings): Json<Settings>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    info!("Updating settings");
+
+    let mut settings = state.settings.write().await;
+    *settings = new_settings;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Settings updated successfully"
+    })))
+}
+
+pub async fn get_applications(
+    State(state): State<Arc<AppState>>,
+    Path(ip): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let mut port = 22;
+    {
+        let hosts = state.hosts.read().await;
+        if let Some(h) = hosts.iter().find(|h| h.ip == ip) {
+            port = h.port;
+        }
+    }
+
+    match state.discovery.get_applications_for_host(&ip, port).await {
+        Ok(apps) => Ok(Json(apps)),
+        Err(e) => {
+            tracing::error!("Failed to get applications for host {}: {}", ip, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct LaunchRequest {
+    pub command: String,
+}
+
+pub async fn launch_application(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+    Json(payload): Json<LaunchRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    info!(
+        "Launching application in session {}: {}",
+        session_id, payload.command
+    );
+
+    let session_info = {
+        let sessions = state.sessions.read().await;
+        sessions
+            .iter()
+            .find(|s| s.id == session_id)
+            .map(|s| (s.host_ip.clone(), s.display_id))
+    };
+
+    if let Some((host_ip, display_id)) = session_info {
+        let mut port = 22;
+        {
+            let hosts = state.hosts.read().await;
+            if let Some(h) = hosts.iter().find(|h| h.ip == host_ip) {
+                port = h.port;
+            }
+        }
+
+        match state
+            .discovery
+            .launch_application_on_host(&host_ip, port, display_id, &payload.command)
+            .await
+        {
+            Ok(res) => Ok(Json(res)),
+            Err(e) => {
+                tracing::error!(
+                    "Failed to launch application in session {}: {}",
+                    session_id,
+                    e
+                );
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        if session_id.starts_with("system-display-") {
+            if let Ok(display_id) = session_id["system-display-".len()..].parse::<u32>() {
+                let host_ip = "127.0.0.1".to_string();
+                let port = 22;
+                match state
+                    .discovery
+                    .launch_application_on_host(&host_ip, port, display_id, &payload.command)
+                    .await
+                {
+                    Ok(res) => return Ok(Json(res)),
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to launch application in physical session {}: {}",
+                            session_id,
+                            e
+                        );
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+                }
+            }
+        }
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct VncQueryParams {
+    pub host: String,
+    pub display: u32,
+}
+
+pub async fn vnc_ws_handler(
+    ws: WebSocketUpgrade,
+    Query(params): Query<VncQueryParams>,
+    State(state): State<Arc<AppState>>,
+) -> impl axum::response::IntoResponse {
+    ws.on_upgrade(move |socket| handle_vnc_socket(socket, params, state))
+}
+
+async fn handle_vnc_socket(
+    ws: WebSocket,
+    params: VncQueryParams,
+    state: Arc<AppState>,
+) {
+    info!("Upgraded connection to WebSocket for VNC. Host: {}, Display: {}", params.host, params.display);
+
+    // 1. Get host port (fallback to 2222)
+    let mut port = 2222;
+    {
+        let hosts = state.hosts.read().await;
+        if let Some(h) = hosts.iter().find(|h| h.ip == params.host) {
+            port = h.port;
+        }
+    }
+
+    // 2. Contact agent to ensure VNC is running for the display
+    let vnc_port = match state.discovery.ensure_vnc_on_host(&params.host, port, params.display).await {
+        Ok(res) => {
+            if let Some(err_msg) = res.get("error").and_then(|e| e.as_str()) {
+                tracing::error!("Agent refused to start VNC for display {}: {}", params.display, err_msg);
+                let mut ws_sender = ws.split().0;
+                let _ = ws_sender.send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                    code: 4000,
+                    reason: err_msg.to_string().into(),
+                }))).await;
+                return;
+            }
+            if let Some(p) = res.get("port").and_then(|p| p.as_u64()) {
+                p as u16
+            } else {
+                tracing::warn!("Agent response missing port field, using default for display {}", params.display);
+                5900 + params.display as u16
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to ensure VNC on host {}: {}", params.host, e);
+            let mut ws_sender = ws.split().0;
+            let _ = ws_sender.send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                code: 4001,
+                reason: format!("Agent communication error: {}", e).into(),
+            }))).await;
+            return;
+        }
+    };
+
+    // 3. Connect to target TCP VNC port
+    let target_addr = format!("{}:{}", params.host, vnc_port);
+    info!("Connecting WebSocket proxy to VNC TCP target: {}", target_addr);
+    
+    let tcp_stream = match tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        TcpStream::connect(&target_addr)
+    ).await {
+        Ok(Ok(stream)) => stream,
+        Ok(Err(e)) => {
+            tracing::error!("Failed to connect to VNC target {}: {}", target_addr, e);
+            return;
+        }
+        Err(_) => {
+            tracing::error!("Timeout connecting to VNC target {}", target_addr);
+            return;
+        }
+    };
+
+    // 4. Proxy bytes
+    let (mut ws_sender, mut ws_receiver) = ws.split();
+    let (mut tcp_reader, mut tcp_writer) = tcp_stream.into_split();
+
+    let client_to_server = async {
+        while let Some(Ok(msg)) = ws_receiver.next().await {
+            match msg {
+                Message::Binary(bin) => {
+                    if tcp_writer.write_all(&bin).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Text(txt) => {
+                    if tcp_writer.write_all(txt.as_bytes()).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Close(_) => break,
+                _ => {}
+            }
+        }
+        let _ = tcp_writer.shutdown().await;
+    };
+
+    let server_to_client = async {
+        let mut buf = [0u8; 16384];
+        while let Ok(n) = tcp_reader.read(&mut buf).await {
+            if n == 0 {
+                break;
+            }
+            if ws_sender.send(Message::Binary(buf[..n].to_vec().into())).await.is_err() {
+                break;
+            }
+        }
+    };
+
+    tokio::select! {
+        _ = client_to_server => {}
+        _ = server_to_client => {}
+    }
+
+    info!("VNC WebSocket proxy connection closed for host={}", params.host);
+}
+
+pub async fn upload_file(
+    axum::extract::Path(filename): axum::extract::Path<String>,
+    body: axum::body::Bytes,
+) -> Result<axum::Json<serde_json::Value>, axum::http::StatusCode> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let desktop = std::path::PathBuf::from(home).join("Desktop");
+    
+    let _ = std::fs::create_dir_all(&desktop);
+    
+    let file_path = desktop.join(&filename);
+    tracing::info!("Uploading file to: {:?}", file_path);
+    
+    match std::fs::write(&file_path, body) {
+        Ok(_) => Ok(axum::Json(serde_json::json!({ 
+            "success": true, 
+            "message": format!("Файл успешно загружен на рабочий стол: {}", filename) 
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to save uploaded file: {}", e);
+            Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn get_system_users(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(ip): axum::extract::Path<String>,
+) -> Result<Json<Vec<String>>, StatusCode> {
+    let port = state.discovery.get_port_for_host(&ip);
+    match state.discovery.get_system_users_for_host(&ip, port).await {
+        Ok(json) => {
+            if let Some(users) = json.get("users").and_then(|u| u.as_array()) {
+                let list = users.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+                Ok(Json(list))
+            } else {
+                Ok(Json(vec![]))
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to get users for host {}: {}", ip, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}

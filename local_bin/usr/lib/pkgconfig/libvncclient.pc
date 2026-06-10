@@ -1,0 +1,14 @@
+prefix=/usr
+exec_prefix=/usr
+libdir=/usr/lib
+includedir=/usr/include
+
+Name: LibVNCClient
+Description: A library for easy implementation of a VNC client.
+Version: 0.9.15
+Requires:
+Requires.private:
+Libs: -L${libdir} -lvncclient
+Libs.private:  -lsystemd -lsasl2 -lz -llzo2 -ljpeg -lgcrypt -lgnutls -lssl -lcrypto
+Cflags: -I${includedir}
+

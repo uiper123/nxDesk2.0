@@ -1,0 +1,296 @@
+.container {
+    padding: 24px;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    color: #e0e0e6;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    color: #e0e0e6;
+}
+
+.count {
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px 10px;
+    border-radius: 2px;
+    color: #9aa5ce;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.card {
+    background: #13141c;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    background: #1a1b26;
+    border-color: #00f2fe;
+}
+
+.statusIndicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 16px;
+}
+
+.online .statusIndicator {
+    background: #9ece6a;
+}
+
+.busy .statusIndicator {
+    background: #ff9e64;
+}
+
+.offline {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.offline:hover {
+    border-color: rgba(255, 255, 255, 0.06);
+    background: #13141c;
+}
+
+.offline .statusIndicator {
+    background: #f7768e;
+}
+
+.info {
+    flex: 2;
+}
+
+.name {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.ip {
+    font-size: 0.85rem;
+    color: #565f89;
+}
+
+.details {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.os {
+    font-size: 0.85rem;
+    color: #9aa5ce;
+    margin-bottom: 2px;
+}
+
+.sessions {
+    font-size: 0.75rem;
+    color: #565f89;
+}
+
+.connectButton {
+    background: rgba(0, 242, 254, 0.1);
+    border: 1px solid rgba(0, 242, 254, 0.2);
+    border-radius: 2px;
+    color: #00f2fe;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.card:hover .connectButton {
+    background: #00f2fe;
+    color: #0f1016;
+    border-color: transparent;
+}
+
+.connectButton:disabled {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: transparent;
+    color: #565f89;
+    cursor: not-allowed;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: #13141c;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    width: 480px;
+    max-width: 90%;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    font-family: inherit;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 12px;
+}
+
+.modalHeader h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #e0e0e6;
+}
+
+.closeButton {
+    background: transparent;
+    border: none;
+    color: #565f89;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.modalSection {
+    margin-bottom: 20px;
+}
+
+.modalSection h4 {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    color: #787c99;
+}
+
+.sessionList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.sessionItem {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 14px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sessionItem:hover {
+    background: rgba(0, 242, 254, 0.08);
+    border-color: #00f2fe;
+}
+
+.sessionUser {
+    font-weight: 600;
+    color: #00f2fe;
+}
+
+.sessionTime {
+    font-size: 0.75rem;
+    color: #565f89;
+}
+
+.noSessions {
+    color: #565f89;
+    font-size: 0.9rem;
+    padding: 12px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.inputGroup {
+    display: flex;
+    gap: 8px;
+}
+
+.inputGroup input {
+    flex: 1;
+    background: rgba(15, 16, 22, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #e0e0e6;
+    font-size: 0.9rem;
+}
+
+.inputGroup input:focus {
+    border-color: #00f2fe;
+    outline: none;
+}
+
+.actionButton {
+    background: #00f2fe;
+    color: #0f1016;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actionButton:hover {
+    opacity: 0.9;
+}
+
+.actionButton:disabled {
+    background: rgba(255, 255, 255, 0.05);
+    color: #565f89;
+    cursor: not-allowed;
+}
+
+.errorText {
+    color: #f7768e;
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+.loadingText {
+    color: #9aa5ce;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 12px;
+}

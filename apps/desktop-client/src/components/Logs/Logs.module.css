@@ -1,0 +1,117 @@
+.container {
+    padding: 24px;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    color: #e0e0e6;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+}
+
+.select {
+    background: rgba(15, 16, 22, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: #e0e0e6;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.clearBtn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #9aa5ce;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clearBtn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+}
+
+.logBox {
+    background: rgba(15, 16, 22, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    height: 400px;
+    overflow-y: auto;
+}
+
+.logRow {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.logRow:last-child {
+    border-bottom: none;
+}
+
+.time {
+    color: #565f89;
+    margin-right: 12px;
+}
+
+.badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    margin-right: 16px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.info .badge {
+    background: rgba(0, 242, 254, 0.1);
+    color: #00f2fe;
+}
+
+.warn .badge {
+    background: rgba(255, 158, 100, 0.15);
+    color: #ff9e64;
+}
+
+.error .badge {
+    background: rgba(247, 118, 142, 0.15);
+    color: #f7768e;
+}
+
+.audit .badge {
+    background: rgba(158, 206, 106, 0.15);
+    color: #9ece6a;
+}
+
+.msg {
+    color: #a9b1d6;
+}
+
+.empty {
+    text-align: center;
+    color: #565f89;
+    padding-top: 150px;
+}

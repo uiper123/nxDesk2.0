@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/desktop-client/src-tauri",
+    "apps/server-agent",
+    "apps/relay-server",
+    "apps/admin-cli",
+    "apps/api-server",
+    "crates/protocol",
+    "crates/transport",
+    "crates/security",
+    "crates/session-manager",
+    "crates/video-pipeline",
+    "crates/input-injector",
+    "crates/clipboard",
+    "crates/file-transfer",
+    "crates/audit",
+    "crates/config",
+    "crates/os-pal",
+    "crates/shared-types",
+]
+
+[workspace.dependencies]
+tokio = { version = "1.38", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+directories = "5.0"
+keyring = "2.1"
+specta = { version = "2.0.0-rc.20", features = ["derive"] }
+tauri-specta = { version = "2.0.0-rc.15", features = ["derive"] }
+gstreamer = { version = "0.22", package = "gstreamer" }
+x11rb = { version = "0.13", features = ["all-extensions"] }
+zbus = "4.0"
+russh = "0.40"
+toml = "0.8"

@@ -1,0 +1,15 @@
+[package]
+name = "transport"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+russh = { workspace = true }
+
+# Workspace internal crates
+protocol = { path = "../protocol" }
+shared-types = { path = "../shared-types" }

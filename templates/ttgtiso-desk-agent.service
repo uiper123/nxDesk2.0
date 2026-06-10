@@ -1,0 +1,25 @@
+[Unit]
+Description=TTGTiSO-Desk Remote Desktop Server Agent
+After=network.target network-online.target systemd-sysusers.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/lib/ttgtiso-desk
+ExecStart=/usr/bin/ttgtiso-desk-agent --config /etc/ttgtiso-desk/agent.toml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening measures
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SYS_ADMIN CAP_SETUID CAP_SETGID
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[package]
+name = "security"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+anyhow = { workspace = true }
+config = { path = "../config" }

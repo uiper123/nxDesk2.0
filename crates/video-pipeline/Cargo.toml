@@ -1,0 +1,13 @@
+[package]
+name = "video-pipeline"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+gstreamer = { workspace = true }
+x11rb = { workspace = true }
+shared-types = { path = "../shared-types" }
+png = "0.17"

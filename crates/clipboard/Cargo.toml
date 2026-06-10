@@ -1,0 +1,10 @@
+[package]
+name = "clipboard"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tracing = { workspace = true }
+os-pal = { path = "../os-pal" }
+audit = { path = "../audit" }

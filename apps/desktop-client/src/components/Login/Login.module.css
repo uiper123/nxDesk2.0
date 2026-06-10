@@ -1,0 +1,156 @@
+.loginContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #0a0b0f;
+    font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+    color: #e0e0e6;
+    padding: 20px;
+}
+
+.loginCard {
+    background: #13141c;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    padding: 40px;
+    width: 100%;
+    max-width: 440px;
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0 0 8px 0;
+    color: #00f2fe;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: #9aa5ce;
+    margin: 0;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.inputGroup label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #787c99;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inputGroup input {
+    background: #07080c;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    padding: 12px 16px;
+    color: #e0e0e6;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease;
+}
+
+.inputGroup input:focus {
+    outline: none;
+    border-color: #00f2fe;
+    background: #07080c;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 16px;
+}
+
+.loginButton {
+    background: #00f2fe;
+    border: none;
+    border-radius: 2px;
+    padding: 14px;
+    color: #0f1016;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.loginButton:hover:not(:disabled) {
+    background: #00b8d4;
+}
+
+.loginButton:active:not(:disabled) {
+    background: #0097a7;
+}
+
+.loginButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.errorMessage {
+    background: rgba(247, 118, 142, 0.15);
+    border: 1px solid #f7768e;
+    color: #f7768e;
+    border-radius: 2px;
+    padding: 12px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+    font-size: 0.75rem;
+    color: #565f89;
+}
+
+.badge {
+    background: rgba(0, 242, 254, 0.1);
+    color: #00f2fe;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(15, 16, 22, 0.2);
+    border-radius: 50%;
+    border-top-color: #0f1016;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

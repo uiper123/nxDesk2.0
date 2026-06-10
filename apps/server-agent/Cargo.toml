@@ -1,0 +1,26 @@
+[package]
+name = "server-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Workspace internal crates
+config = { path = "../../crates/config" }
+audit = { path = "../../crates/audit" }
+security = { path = "../../crates/security" }
+session-manager = { path = "../../crates/session-manager" }
+video-pipeline = { path = "../../crates/video-pipeline" }
+input-injector = { path = "../../crates/input-injector" }
+clipboard = { path = "../../crates/clipboard" }
+file-transfer = { path = "../../crates/file-transfer" }
+transport = { path = "../../crates/transport" }
+protocol = { path = "../../crates/protocol" }
+shared-types = { path = "../../crates/shared-types" }

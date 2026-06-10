@@ -1,0 +1,12 @@
+# TTGTiSO-Desk Remote Desktop Server Agent Configuration
+
+bind_address = "0.0.0.0"
+port = 22
+
+[session_limits]
+max_concurrent_sessions = 5
+session_timeout_seconds = 3600
+
+[security_policy]
+allow_password_auth = true
+enable_audit_logs = true
