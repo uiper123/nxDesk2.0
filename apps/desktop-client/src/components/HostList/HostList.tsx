@@ -34,6 +34,25 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
     const [discoveredHosts, setDiscoveredHosts] = useState<Host[]>([]);
     const [scanLoading, setScanLoading] = useState(false);
 
+    // Search / filter / sort state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<"all" | "online" | "busy" | "offline">("all");
+    const [sortBy, setSortBy] = useState<"name" | "status" | "sessions">("status");
+
+    const statusRank: Record<string, number> = { online: 0, busy: 1, offline: 2 };
+    const visibleHosts = hosts
+        .filter(h => statusFilter === "all" || h.status === statusFilter)
+        .filter(h => {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) return true;
+            return h.name.toLowerCase().includes(q) || h.ip.toLowerCase().includes(q);
+        })
+        .sort((a, b) => {
+            if (sortBy === "name") return a.name.localeCompare(b.name);
+            if (sortBy === "sessions") return b.active_sessions - a.active_sessions;
+            return (statusRank[a.status] ?? 3) - (statusRank[b.status] ?? 3) || a.name.localeCompare(b.name);
+        });
+
     useEffect(() => {
         const fetchHosts = async () => {
             try {
@@ -210,30 +229,61 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div className={styles.headerLeft}>
                     <h2>Реестр управляемых хостов</h2>
-                    <span className={styles.count}>{hosts.length} в сети</span>
+                    <span className={styles.count}>{visibleHosts.length} из {hosts.length}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button 
-                        className={styles.connectButton}
-                        onClick={handleScanHosts}
-                        style={{ background: '#3b4261', padding: '8px 16px', color: '#c0caf5', width: 'auto' }}
-                    >
+                <div className={styles.headerActions}>
+                    <button className={styles.secondaryButton} onClick={handleScanHosts}>
                         🔍 Сканировать сеть
                     </button>
-                    <button 
-                        className={styles.connectButton}
-                        onClick={() => setShowAddHost(true)}
-                        style={{ background: '#2d334b', padding: '8px 16px', color: '#c0caf5', width: 'auto' }}
-                    >
+                    <button className={styles.secondaryButton} onClick={() => setShowAddHost(true)}>
                         + Добавить хост
                     </button>
                 </div>
             </div>
 
+            <div className={styles.toolbar}>
+                <input
+                    type="search"
+                    className={styles.searchInput}
+                    placeholder="Поиск по имени или IP…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    aria-label="Поиск хостов"
+                />
+                <select
+                    className={styles.filterSelect}
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                    aria-label="Фильтр по статусу"
+                >
+                    <option value="all">Все статусы</option>
+                    <option value="online">Online</option>
+                    <option value="busy">Busy</option>
+                    <option value="offline">Offline</option>
+                </select>
+                <select
+                    className={styles.filterSelect}
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    aria-label="Сортировка"
+                >
+                    <option value="status">По статусу</option>
+                    <option value="name">По имени</option>
+                    <option value="sessions">По сессиям</option>
+                </select>
+            </div>
+
             <div className={styles.list}>
-                {hosts.map((host) => (
+                {visibleHosts.length === 0 ? (
+                    <div className={styles.emptyState}>
+                        {hosts.length === 0
+                            ? "Хосты ещё не добавлены. Добавьте хост вручную или просканируйте сеть."
+                            : "Ничего не найдено по заданным условиям."}
+                    </div>
+                ) : (
+                visibleHosts.map((host) => (
                     <div 
                         key={host.id} 
                         className={`${styles.card} ${styles[host.status]}`}
@@ -259,7 +309,8 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                             {host.status === "offline" ? "Недоступен" : "Подключиться"}
                         </button>
                     </div>
-                ))}
+                ))
+                )}
             </div>
 
             {selectedHost && (
