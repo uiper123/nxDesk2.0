@@ -115,3 +115,20 @@
     color: var(--color-text-muted);
     padding-top: 150px;
 }
+
+.exportBtn {
+    background: rgba(0, 242, 254, 0.08);
+    border: 1px solid rgba(0, 242, 254, 0.2);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent, #00f2fe);
+    padding: 8px 14px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--duration-fast) ease;
+}
+
+.exportBtn:hover {
+    background: rgba(0, 242, 254, 0.18);
+    transform: translateY(-1px);
+}

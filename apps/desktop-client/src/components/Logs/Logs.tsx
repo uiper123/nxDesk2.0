@@ -2,8 +2,27 @@ import React, { useState, useEffect } from "react";
 import styles from "./Logs.module.css";
 import { apiService, LogEntry } from "../../services/api";
 import { logger } from "../../services/logger";
+import { useToast } from "../Toast";
+
+function makeCsv(rows: LogEntry[]): string {
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const header = "timestamp,level,message";
+  const lines = rows.map(r => [escape(r.timestamp), escape(r.level), escape(r.message)].join(","));
+  return [header, ...lines].join("\n");
+}
+
+function downloadFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export const Logs: React.FC = () => {
+    const { showToast } = useToast();
     const [filter, setFilter] = useState<"ALL" | "INFO" | "WARN" | "ERROR" | "AUDIT">("ALL");
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,6 +54,21 @@ export const Logs: React.FC = () => {
 
     const handleClear = () => {
         setLogs([]);
+    };
+
+    const handleExport = (format: "json" | "csv") => {
+        if (filteredLogs.length === 0) {
+            showToast("info", "Журнал пуст — экспортировать нечего");
+            return;
+        }
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        if (format === "json") {
+            downloadFile(`audit-log-${stamp}.json`, JSON.stringify(filteredLogs, null, 2));
+        } else {
+            const csvContent = makeCsv(filteredLogs);
+            downloadFile(`audit-log-${stamp}.csv`, csvContent);
+        }
+        showToast("success", `Журнал экспортирован (${format.toUpperCase()}, ${filteredLogs.length} записей)`);
     };
 
     if (loading) {
@@ -75,6 +109,12 @@ export const Logs: React.FC = () => {
                         <option value="ERROR">Errors</option>
                         <option value="AUDIT">Audits</option>
                     </select>
+                    <button className={styles.exportBtn} onClick={() => handleExport("json")}>
+                        ⤓ JSON
+                    </button>
+                    <button className={styles.exportBtn} onClick={() => handleExport("csv")}>
+                        ⤓ CSV
+                    </button>
                     <button className={styles.clearBtn} onClick={handleClear}>
                         Clear
                     </button>
