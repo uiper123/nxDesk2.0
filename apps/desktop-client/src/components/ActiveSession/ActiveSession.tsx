@@ -12,6 +12,7 @@ import {
     formatHostEndpoint,
     getConnectionModeDetails,
 } from "./remoteAccess";
+import { classifyLinkQuality, createInstrumentedChannel, describeBitrate, InstrumentedChannel } from "./vncChannel";
 // @ts-ignore
 import RFB from "@novnc/novnc";
 
@@ -25,9 +26,9 @@ interface ActiveSessionProps {
 
 export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port, username, displayId, onDisconnect }) => {
     const { showToast } = useToast();
-    const [fps, setFps] = useState(30);
-    const [bitrate, setBitrate] = useState(2400);
-    const [latency, setLatency] = useState(12);
+    const [fps, setFps] = useState(0);
+    const [bitrate, setBitrate] = useState(0);
+    const [traffic, setTraffic] = useState(0);
     const [scale, setScale] = useState<number | "auto">("auto");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [clipboardText, setClipboardText] = useState("Copied from host...");
@@ -52,6 +53,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
     const rfbContainerRef = useRef<HTMLDivElement>(null);
     const rfbRef = useRef<any>(null);
     const scaleRef = useRef<number | "auto">("auto");
+    const channelRef = useRef<InstrumentedChannel | null>(null);
 
     const remoteUrls = useMemo(() => buildRemoteDesktopUrls(API_BASE_URL, host, displayId ?? 0), [host, displayId]);
     const modeDetails = useMemo(() => getConnectionModeDetails(connectionMode), [connectionMode]);
@@ -161,14 +163,12 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
         setErrorMessage(null);
         setClipboardSynced(false);
 
-        const options = {
-            shared: true,
-            wsProtocols: ["binary"],
-        };
-
         let rfbInstance: any;
         try {
-            rfbInstance = new RFB(rfbContainerRef.current, wsUrl, options);
+            const channel = createInstrumentedChannel(wsUrl, ["binary"]);
+            channelRef.current = channel;
+
+            rfbInstance = new RFB(rfbContainerRef.current, channel.socket, { shared: true });
             rfbRef.current = rfbInstance;
 
             rfbInstance.focusOnClick = true;
@@ -211,6 +211,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 }
                 rfbRef.current = null;
             }
+            channelRef.current = null;
         };
     }, [host, displayId, remoteUrls.wsUrl, retryCount]);
 
@@ -245,14 +246,14 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
 
     useEffect(() => {
         const interval = setInterval(() => {
-            if (connectionStatus === "connected") {
-                setFps(30 + Math.floor(Math.random() * 2) - 1);
-                setBitrate(2000 + Math.floor(Math.random() * 800));
-                setLatency(10 + Math.floor(Math.random() * 5));
+            if (connectionStatus === "connected" && channelRef.current) {
+                const metrics = channelRef.current.sample();
+                setFps(metrics.updatesPerSec);
+                setBitrate(metrics.bitrateKbps);
+                setTraffic(metrics.totalMegabytes);
             } else {
                 setFps(0);
                 setBitrate(0);
-                setLatency(0);
             }
         }, 1500);
         return () => clearInterval(interval);
@@ -300,22 +301,26 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
 
                 <div className={styles.telemetry}>
                     <div className={styles.metric}>
-                        <label>FPS</label>
-                        <span>{fps}</span>
+                        <label>Updates</label>
+                        <span>{fps}/s</span>
                     </div>
                     <div className={styles.metric}>
                         <label>Bitrate</label>
-                        <span>{(bitrate / 1000).toFixed(1)} Mbps</span>
+                        <span>{describeBitrate(bitrate)}</span>
                     </div>
                     <div className={styles.metric}>
-                        <label>Latency</label>
-                        <span className={latency > 15 ? styles.warn : ""}>{latency} ms</span>
+                        <label>Traffic</label>
+                        <span>{traffic.toFixed(1)} MB</span>
                     </div>
                     <div className={styles.qualityIndicator}>
-                        <div className={styles.bar}></div>
-                        <div className={styles.bar}></div>
-                        <div className={styles.bar}></div>
-                        <span className={styles.qualText}>{modeDetails.label}</span>
+                        {[1, 2, 3].map(level => (
+                            <div
+                                key={level}
+                                className={styles.bar}
+                                style={{ opacity: classifyLinkQuality({ bitrateKbps: bitrate, latencyMs: 0, connected: connectionStatus === "connected" }).bars >= level ? 1 : 0.2 }}
+                            ></div>
+                        ))}
+                        <span className={styles.qualText}>{classifyLinkQuality({ bitrateKbps: bitrate, latencyMs: 0, connected: connectionStatus === "connected" }).label}</span>
                     </div>
                 </div>
 
