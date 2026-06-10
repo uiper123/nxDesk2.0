@@ -153,3 +153,46 @@
     from { opacity: 0.4; }
     to { opacity: 1; }
 }
+
+.failed {
+    color: var(--color-danger);
+}
+
+.failed .indicator {
+    color: var(--color-danger);
+}
+
+.stepNote {
+    color: var(--color-text-muted);
+    font-weight: 400;
+}
+
+.pulseFailed .pulseInner {
+    background: var(--color-danger);
+    animation: none;
+}
+
+.progressFailed {
+    background: linear-gradient(90deg, var(--color-danger), #ff8e9e);
+    box-shadow: 0 0 10px rgba(247, 118, 142, 0.5);
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+}
+
+.retryButton {
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    color: #0f1016;
+    padding: 12px 24px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity var(--duration-base) ease;
+}
+
+.retryButton:hover {
+    opacity: 0.9;
+}
