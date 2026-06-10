@@ -85,31 +85,31 @@ function App() {
             className={`nav-item ${currentView === "dashboard" ? "active" : ""}`}
             onClick={() => setCurrentView("dashboard")}
           >
-            📊 Dashboard
+            <span>📊</span> <span className="nav-label">Dashboard</span>
           </button>
           <button 
             className={`nav-item ${currentView === "hosts" ? "active" : ""}`}
             onClick={() => setCurrentView("hosts")}
           >
-            🖥️ Hosts Registry
+            <span>🖥️</span> <span className="nav-label">Hosts Registry</span>
           </button>
           <button 
             className={`nav-item ${currentView === "admin" ? "active" : ""}`}
             onClick={() => setCurrentView("admin")}
           >
-            ⚙️ Admin Panel
+            <span>⚙️</span> <span className="nav-label">Admin Panel</span>
           </button>
           <button 
             className={`nav-item ${currentView === "logs" ? "active" : ""}`}
             onClick={() => setCurrentView("logs")}
           >
-            📋 Audit Logs
+            <span>📋</span> <span className="nav-label">Audit Logs</span>
           </button>
           <button 
             className={`nav-item ${currentView === "settings" ? "active" : ""}`}
             onClick={() => setCurrentView("settings")}
           >
-            🔧 Settings
+            <span>🔧</span> <span className="nav-label">Settings</span>
           </button>
         </nav>
 

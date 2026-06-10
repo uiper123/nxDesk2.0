@@ -51,6 +51,11 @@ impl AppState {
                 {
                     Ok(mut host_sessions) => {
                         host.active_sessions = host_sessions.len() as u32;
+                        host.status = if host_sessions.is_empty() {
+                            HostStatus::Online
+                        } else {
+                            HostStatus::Busy
+                        };
                         all_sessions.append(&mut host_sessions);
                     }
                     Err(e) => {

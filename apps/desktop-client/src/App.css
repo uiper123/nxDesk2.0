@@ -187,3 +187,30 @@ body {
 .nav-item:active {
     transform: scale(0.98);
 }
+
+@media (max-width: 900px) {
+    .app-workspace {
+        grid-template-columns: 72px 1fr;
+    }
+
+    .sidebar-nav {
+        padding: 20px 10px;
+    }
+
+    .brand h2,
+    .nav-item .nav-label,
+    .user-info,
+    .sidebar-footer .health-label {
+        display: none;
+    }
+
+    .nav-item {
+        justify-content: center;
+        padding: 12px;
+    }
+
+    .logout-btn {
+        font-size: 0.7rem;
+        padding: 8px 4px;
+    }
+}
