@@ -6,8 +6,8 @@ body {
   margin: 0;
   padding: 0;
   background-color: #0f1016;
-  font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
-  color: #e0e0e6;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -47,7 +47,7 @@ body {
   background: #1e1e24;
   -webkit-background-clip: unset;
   -webkit-text-fill-color: unset;
-  color: #00f2fe;
+  color: var(--color-accent);
   letter-spacing: -0.5px;
 }
 
@@ -61,14 +61,14 @@ body {
 .nav-item {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 2px;
-  color: #9aa5ce;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   padding: 12px 16px;
   text-align: left;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-base) var(--ease-spring);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -83,7 +83,7 @@ body {
 .nav-item.active {
   background: rgba(0, 242, 254, 0.08);
   border-color: rgba(0, 242, 254, 0.25);
-  color: #00f2fe;
+  color: var(--color-accent);
 }
 
 .sidebar-footer {
@@ -106,7 +106,7 @@ body {
   background: rgba(255, 255, 255, 0.06);
   width: 36px;
   height: 36px;
-  border-radius: 2px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,30 +125,65 @@ body {
 
 .role {
   font-size: 0.75rem;
-  color: #565f89;
+  color: var(--color-text-muted);
 }
 
 .logout-btn {
   background: rgba(247, 118, 142, 0.1);
   border: 1px solid rgba(247, 118, 142, 0.25);
-  border-radius: 2px;
-  color: #f7768e;
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
   padding: 10px;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-base) var(--ease-spring);
   width: 100%;
 }
 
 .logout-btn:hover {
-  background: #f7768e;
+  background: var(--color-danger);
   color: #0f1016;
   border-color: transparent;
 }
 
 .workspace-content {
-  background: #0d0e12;
+  background: var(--color-bg-base);
   overflow-y: auto;
   height: 100%;
+}
+
+.workspace-content > * {
+    animation: viewIn var(--duration-slow) var(--ease-spring);
+}
+
+@keyframes viewIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.nav-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 0;
+    width: 3px;
+    background: var(--color-accent);
+    border-radius: var(--radius-pill);
+    transform: translateY(-50%);
+    transition: height var(--duration-base) var(--ease-spring);
+}
+
+.nav-item.active::before {
+    height: 60%;
+}
+
+.nav-item:active {
+    transform: scale(0.98);
 }

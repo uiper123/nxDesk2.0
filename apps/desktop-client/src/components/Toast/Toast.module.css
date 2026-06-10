@@ -21,7 +21,7 @@
     backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     pointer-events: auto;
     animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -46,12 +46,12 @@
 
 .error .icon {
     background: rgba(247, 118, 142, 0.16);
-    color: #f7768e;
+    color: var(--color-danger);
 }
 
 .info .icon {
     background: rgba(0, 242, 254, 0.14);
-    color: #00f2fe;
+    color: var(--color-accent);
 }
 
 .success {
@@ -59,11 +59,11 @@
 }
 
 .error {
-    border-left: 3px solid #f7768e;
+    border-left: 3px solid var(--color-danger);
 }
 
 .info {
-    border-left: 3px solid #00f2fe;
+    border-left: 3px solid var(--color-accent);
 }
 
 .body {
@@ -80,14 +80,14 @@
 
 .description {
     font-size: 0.8rem;
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     line-height: 1.4;
 }
 
 .close {
     background: transparent;
     border: none;
-    color: #565f89;
+    color: var(--color-text-muted);
     font-size: 1.1rem;
     line-height: 1;
     cursor: pointer;

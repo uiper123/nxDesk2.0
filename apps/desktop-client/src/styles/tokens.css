@@ -1,0 +1,55 @@
+:root {
+    /* Palette */
+    --color-bg-deep: #0a0b0f;
+    --color-bg-base: #0d0e12;
+    --color-bg-surface: #13141c;
+    --color-bg-raised: #191b26;
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.15);
+
+    --color-text-primary: #e0e0e6;
+    --color-text-secondary: #9aa5ce;
+    --color-text-muted: #565f89;
+
+    --color-accent: #00f2fe;
+    --color-accent-strong: #00b8d4;
+    --color-accent-soft: rgba(0, 242, 254, 0.08);
+    --color-accent-border: rgba(0, 242, 254, 0.25);
+
+    --color-success: #9ece6a;
+    --color-success-soft: rgba(158, 206, 106, 0.12);
+    --color-warning: #e0af68;
+    --color-warning-soft: rgba(224, 175, 104, 0.12);
+    --color-danger: #f7768e;
+    --color-danger-soft: rgba(247, 118, 142, 0.12);
+    --color-danger-border: rgba(247, 118, 142, 0.3);
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-pill: 999px;
+
+    /* Shadows */
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+    --shadow-raised: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --shadow-glow-accent: 0 0 24px rgba(0, 242, 254, 0.18);
+
+    /* Motion */
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-fast: 0.15s;
+    --duration-base: 0.25s;
+    --duration-slow: 0.45s;
+
+    /* Typography */
+    --font-sans: 'Outfit', 'Inter', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

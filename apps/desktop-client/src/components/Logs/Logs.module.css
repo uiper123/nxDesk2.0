@@ -1,7 +1,7 @@
 .container {
     padding: 24px;
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: #e0e0e6;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
 }
 
 .header {
@@ -26,7 +26,7 @@
     background: rgba(15, 16, 22, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     padding: 8px 12px;
     font-size: 0.85rem;
     outline: none;
@@ -36,12 +36,12 @@
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     padding: 8px 16px;
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .clearBtn:hover {
@@ -72,13 +72,13 @@
 }
 
 .time {
-    color: #565f89;
+    color: var(--color-text-muted);
     margin-right: 12px;
 }
 
 .badge {
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-weight: 700;
     font-size: 0.75rem;
     margin-right: 16px;
@@ -88,7 +88,7 @@
 
 .info .badge {
     background: rgba(0, 242, 254, 0.1);
-    color: #00f2fe;
+    color: var(--color-accent);
 }
 
 .warn .badge {
@@ -98,12 +98,12 @@
 
 .error .badge {
     background: rgba(247, 118, 142, 0.15);
-    color: #f7768e;
+    color: var(--color-danger);
 }
 
 .audit .badge {
     background: rgba(158, 206, 106, 0.15);
-    color: #9ece6a;
+    color: var(--color-success);
 }
 
 .msg {
@@ -112,6 +112,6 @@
 
 .empty {
     text-align: center;
-    color: #565f89;
+    color: var(--color-text-muted);
     padding-top: 150px;
 }

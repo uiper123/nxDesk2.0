@@ -1,7 +1,7 @@
 .container {
     padding: 24px;
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: #e0e0e6;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
 }
 
 .header {
@@ -15,15 +15,15 @@
     font-size: 1.4rem;
     font-weight: 700;
     margin: 0;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
 }
 
 .count {
     font-size: 0.8rem;
     background: rgba(255, 255, 255, 0.06);
     padding: 4px 10px;
-    border-radius: 2px;
-    color: #9aa5ce;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
 }
 
 .list {
@@ -33,20 +33,20 @@
 }
 
 .card {
-    background: #13141c;
+    background: var(--color-bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 16px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .card:hover {
-    background: #1a1b26;
-    border-color: #00f2fe;
+    background: var(--color-bg-raised);
+    border-color: var(--color-accent);
 }
 
 .statusIndicator {
@@ -57,7 +57,7 @@
 }
 
 .online .statusIndicator {
-    background: #9ece6a;
+    background: var(--color-success);
 }
 
 .busy .statusIndicator {
@@ -71,11 +71,11 @@
 
 .offline:hover {
     border-color: rgba(255, 255, 255, 0.06);
-    background: #13141c;
+    background: var(--color-bg-surface);
 }
 
 .offline .statusIndicator {
-    background: #f7768e;
+    background: var(--color-danger);
 }
 
 .info {
@@ -90,7 +90,7 @@
 
 .ip {
     font-size: 0.85rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .details {
@@ -102,29 +102,29 @@
 
 .os {
     font-size: 0.85rem;
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     margin-bottom: 2px;
 }
 
 .sessions {
     font-size: 0.75rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .connectButton {
     background: rgba(0, 242, 254, 0.1);
     border: 1px solid rgba(0, 242, 254, 0.2);
-    border-radius: 2px;
-    color: #00f2fe;
+    border-radius: var(--radius-md);
+    color: var(--color-accent);
     padding: 8px 16px;
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .card:hover .connectButton {
-    background: #00f2fe;
+    background: var(--color-accent);
     color: #0f1016;
     border-color: transparent;
 }
@@ -132,7 +132,7 @@
 .connectButton:disabled {
     background: rgba(255, 255, 255, 0.04);
     border-color: transparent;
-    color: #565f89;
+    color: var(--color-text-muted);
     cursor: not-allowed;
 }
 
@@ -150,9 +150,9 @@
 }
 
 .modalContent {
-    background: #13141c;
+    background: var(--color-bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     width: 480px;
     max-width: 90%;
     padding: 24px;
@@ -173,13 +173,13 @@
     margin: 0;
     font-size: 1.2rem;
     font-weight: 700;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
 }
 
 .closeButton {
     background: transparent;
     border: none;
-    color: #565f89;
+    color: var(--color-text-muted);
     font-size: 1.2rem;
     cursor: pointer;
 }
@@ -192,7 +192,7 @@
     margin: 0 0 10px 0;
     font-size: 0.9rem;
     text-transform: uppercase;
-    color: #787c99;
+    color: var(--color-text-muted);
 }
 
 .sessionList {
@@ -208,36 +208,36 @@
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     padding: 10px 14px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .sessionItem:hover {
     background: rgba(0, 242, 254, 0.08);
-    border-color: #00f2fe;
+    border-color: var(--color-accent);
 }
 
 .sessionUser {
     font-weight: 600;
-    color: #00f2fe;
+    color: var(--color-accent);
 }
 
 .sessionTime {
     font-size: 0.75rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .noSessions {
-    color: #565f89;
+    color: var(--color-text-muted);
     font-size: 0.9rem;
     padding: 12px;
     text-align: center;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 .inputGroup {
@@ -249,27 +249,27 @@
     flex: 1;
     background: rgba(15, 16, 22, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: 8px 12px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     font-size: 0.9rem;
 }
 
 .inputGroup input:focus {
-    border-color: #00f2fe;
+    border-color: var(--color-accent);
     outline: none;
 }
 
 .actionButton {
-    background: #00f2fe;
+    background: var(--color-accent);
     color: #0f1016;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: 8px 16px;
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .actionButton:hover {
@@ -278,19 +278,51 @@
 
 .actionButton:disabled {
     background: rgba(255, 255, 255, 0.05);
-    color: #565f89;
+    color: var(--color-text-muted);
     cursor: not-allowed;
 }
 
 .errorText {
-    color: #f7768e;
+    color: var(--color-danger);
     font-size: 0.85rem;
     margin-top: 8px;
 }
 
 .loadingText {
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     font-size: 0.9rem;
     text-align: center;
     padding: 12px;
+}
+
+.card {
+    animation: cardIn var(--duration-slow) var(--ease-spring) backwards;
+}
+
+.card:nth-child(1) { animation-delay: 0.03s; }
+.card:nth-child(2) { animation-delay: 0.06s; }
+.card:nth-child(3) { animation-delay: 0.09s; }
+.card:nth-child(4) { animation-delay: 0.12s; }
+.card:nth-child(5) { animation-delay: 0.15s; }
+.card:nth-child(6) { animation-delay: 0.18s; }
+
+.card:hover:not(.offline) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card), var(--shadow-glow-accent);
+}
+
+.online .statusIndicator {
+    box-shadow: 0 0 0 0 rgba(158, 206, 106, 0.6);
+    animation: statusPulse 2.4s ease-out infinite;
+}
+
+@keyframes statusPulse {
+    0% { box-shadow: 0 0 0 0 rgba(158, 206, 106, 0.55); }
+    70% { box-shadow: 0 0 0 8px rgba(158, 206, 106, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(158, 206, 106, 0); }
+}
+
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }

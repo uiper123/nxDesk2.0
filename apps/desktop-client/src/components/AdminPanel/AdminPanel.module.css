@@ -1,7 +1,7 @@
 .container {
     padding: 24px;
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: #e0e0e6;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
 }
 
 .header {
@@ -20,7 +20,7 @@
 .warningBadge {
     background: rgba(247, 118, 142, 0.1);
     border: 1px solid rgba(247, 118, 142, 0.2);
-    color: #f7768e;
+    color: var(--color-danger);
     padding: 4px 12px;
     border-radius: 6px;
     font-size: 0.8rem;
@@ -37,7 +37,7 @@
 .sectionTitle {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     margin: 0 0 20px 0;
 }
 
@@ -54,7 +54,7 @@
 .table th {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #787c99;
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 12px 16px;
@@ -77,7 +77,7 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
 }
 
 .userSymbol {
@@ -86,9 +86,9 @@
 
 .displayBadge {
     background: rgba(0, 242, 254, 0.1);
-    color: #00f2fe;
+    color: var(--color-accent);
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-weight: 600;
 }
 
@@ -101,16 +101,16 @@
     background: rgba(247, 118, 142, 0.1);
     border: 1px solid rgba(247, 118, 142, 0.2);
     border-radius: 6px;
-    color: #f7768e;
+    color: var(--color-danger);
     padding: 6px 12px;
     font-weight: 600;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .terminateButton:hover {
-    background: #f7768e;
+    background: var(--color-danger);
     color: #0f1016;
     border-color: transparent;
 }

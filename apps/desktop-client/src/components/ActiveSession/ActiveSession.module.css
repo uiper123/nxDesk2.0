@@ -3,8 +3,8 @@
     flex-direction: column;
     height: 100vh;
     background: #0f1016;
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: #e0e0e6;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
     overflow: hidden;
 }
 
@@ -36,18 +36,18 @@
 
 .hostBadge {
     background: rgba(0, 242, 254, 0.1);
-    color: #00f2fe;
+    color: var(--color-accent);
     padding: 4px 10px;
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     font-size: 0.8rem;
     font-weight: 700;
 }
 
 .displayBadge {
     background: rgba(255, 255, 255, 0.06);
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     padding: 4px 10px;
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     font-size: 0.8rem;
     font-weight: 600;
 }
@@ -66,7 +66,7 @@
 
 .metric label {
     font-size: 0.65rem;
-    color: #565f89;
+    color: var(--color-text-muted);
     text-transform: uppercase;
     margin-bottom: 2px;
 }
@@ -90,7 +90,7 @@
 .bar {
     width: 3px;
     height: 12px;
-    background: #9ece6a;
+    background: var(--color-success);
     border-radius: 1px;
 }
 
@@ -99,7 +99,7 @@
 
 .qualText {
     font-size: 0.75rem;
-    color: #9ece6a;
+    color: var(--color-success);
     margin-left: 6px;
     font-weight: 600;
 }
@@ -112,13 +112,13 @@
 .toolButton {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
-    color: #e0e0e6;
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
     padding: 6px 12px;
     font-size: 0.85rem;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .toolButton:hover {
@@ -127,18 +127,18 @@
 
 .disconnectButton {
     background: rgba(247, 118, 142, 0.15);
-    border: 1px solid #f7768e;
-    border-radius: 2px;
-    color: #f7768e;
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    color: var(--color-danger);
     padding: 6px 16px;
     font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .disconnectButton:hover {
-    background: #f7768e;
+    background: var(--color-danger);
     color: #0f1016;
 }
 
@@ -203,7 +203,7 @@
     height: 320px;
     background: rgba(26, 27, 38, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
     display: flex;
     flex-direction: column;
@@ -226,7 +226,7 @@
     display: flex;
     gap: 8px;
     font-size: 0.75rem;
-    color: #787c99;
+    color: var(--color-text-muted);
 }
 
 .windowContent {
@@ -238,12 +238,12 @@
 }
 
 .cmd {
-    color: #9ece6a;
+    color: var(--color-success);
     margin: 0 0 8px 0;
 }
 
 .output {
-    color: #565f89;
+    color: var(--color-text-muted);
     margin: 0 0 8px 0;
 }
 
@@ -262,9 +262,9 @@
 }
 
 .startButton {
-    background: #00f2fe;
+    background: var(--color-accent);
     border: none;
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     color: #0f1016;
     padding: 6px 12px;
     font-weight: 700;
@@ -282,8 +282,8 @@
 .taskbarItem {
     background: rgba(255, 255, 255, 0.06);
     border: none;
-    border-radius: 2px;
-    color: #e0e0e6;
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
     padding: 6px 12px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -292,7 +292,7 @@
 .clock {
     font-size: 0.8rem;
     font-family: monospace;
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
 }
 
 .sidebar {
@@ -326,7 +326,7 @@
 .sidebarHeader button {
     background: transparent;
     border: none;
-    color: #565f89;
+    color: var(--color-text-muted);
     font-size: 1.1rem;
     cursor: pointer;
 }
@@ -339,16 +339,16 @@
 .uploadBox {
     background: rgba(15, 16, 22, 0.6);
     border: 2px dashed rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 30px 20px;
     text-align: center;
     cursor: pointer;
     margin-bottom: 20px;
-    transition: all 0.2s ease;
+    transition: all var(--duration-base) var(--ease-spring);
 }
 
 .uploadBox:hover {
-    border-color: #00f2fe;
+    border-color: var(--color-accent);
     background: rgba(0, 242, 254, 0.03);
 }
 
@@ -359,7 +359,7 @@
 
 .uploadBox span {
     font-size: 0.75rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .fileList {
@@ -370,7 +370,7 @@
 
 .fileItem {
     background: rgba(25, 27, 38, 0.95);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 10px 14px;
     display: flex;
     justify-content: space-between;
@@ -380,9 +380,9 @@
 
 .statusBadge {
     background: rgba(158, 206, 106, 0.15);
-    color: #9ece6a;
+    color: var(--color-success);
     padding: 2px 6px;
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     font-size: 0.7rem;
     font-weight: 600;
 }
@@ -399,24 +399,24 @@
 
 .clipLabel {
     font-size: 0.8rem;
-    color: #787c99;
+    color: var(--color-text-muted);
 }
 
 .clipInput {
     flex: 1;
     background: rgba(15, 16, 22, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: 6px 12px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     font-size: 0.85rem;
 }
 
 .syncButton {
     background: rgba(0, 242, 254, 0.1);
     border: 1px solid rgba(0, 242, 254, 0.2);
-    border-radius: 4px;
-    color: #00f2fe;
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
     padding: 6px 12px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -424,7 +424,7 @@
 }
 
 .syncButton:hover {
-    background: #00f2fe;
+    background: var(--color-accent);
     color: #0f1016;
 }
 
@@ -454,9 +454,9 @@
     background: rgba(15, 16, 22, 0.9);
     border: 1px solid rgba(0, 242, 254, 0.3);
     padding: 6px 16px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.8rem;
-    color: #00f2fe;
+    color: var(--color-accent);
     z-index: 20;
     pointer-events: none;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -468,7 +468,7 @@
     background: rgba(15, 16, 22, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     margin-bottom: 16px;
     font-size: 0.9rem;
     transition: border-color 0.2s;
@@ -477,13 +477,13 @@
 
 .appSearchInput:focus {
     outline: none;
-    border-color: #00f2fe;
+    border-color: var(--color-accent);
 }
 
 .appLoading, .noAppsText {
     text-align: center;
     padding: 24px;
-    color: #787c99;
+    color: var(--color-text-muted);
     font-size: 0.9rem;
 }
 
@@ -532,12 +532,12 @@
 .appName {
     font-size: 0.9rem;
     font-weight: 500;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
 }
 
 .appExec {
     font-size: 0.75rem;
-    color: #787c99;
+    color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -545,7 +545,7 @@
 
 .connectingText {
     font-size: 1.1rem;
-    color: #00f2fe;
+    color: var(--color-accent);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -557,7 +557,7 @@
     width: 40px;
     height: 40px;
     border: 4px solid rgba(0, 242, 254, 0.1);
-    border-top-color: #00f2fe;
+    border-top-color: var(--color-accent);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -571,7 +571,7 @@
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    color: #f7768e;
+    color: var(--color-danger);
     padding: 24px;
     background: rgba(247, 118, 142, 0.05);
     border: 1px solid rgba(247, 118, 142, 0.2);
@@ -590,10 +590,10 @@
 }
 
 .retryButton {
-    background: #f7768e;
+    background: var(--color-danger);
     color: #0f1016;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: 8px 20px;
     font-weight: 700;
     cursor: pointer;

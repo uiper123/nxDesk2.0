@@ -3,16 +3,16 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: #0a0b0f;
-    font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
-    color: #e0e0e6;
+    background: var(--color-bg-deep);
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
     padding: 20px;
 }
 
 .loginCard {
-    background: #13141c;
+    background: var(--color-bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 40px;
     width: 100%;
     max-width: 440px;
@@ -28,13 +28,13 @@
     font-size: 2.2rem;
     font-weight: 800;
     margin: 0 0 8px 0;
-    color: #00f2fe;
+    color: var(--color-accent);
     letter-spacing: -0.5px;
 }
 
 .subtitle {
     font-size: 0.9rem;
-    color: #9aa5ce;
+    color: var(--color-text-secondary);
     margin: 0;
 }
 
@@ -47,7 +47,7 @@
 .inputGroup label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #787c99;
+    color: var(--color-text-muted);
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -56,16 +56,16 @@
 .inputGroup input {
     background: #07080c;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 12px 16px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     font-size: 0.95rem;
     transition: border-color 0.2s ease;
 }
 
 .inputGroup input:focus {
     outline: none;
-    border-color: #00f2fe;
+    border-color: var(--color-accent);
     background: #07080c;
 }
 
@@ -76,9 +76,9 @@
 }
 
 .loginButton {
-    background: #00f2fe;
+    background: var(--color-accent);
     border: none;
-    border-radius: 2px;
+    border-radius: var(--radius-md);
     padding: 14px;
     color: #0f1016;
     font-weight: 700;
@@ -90,7 +90,7 @@
 }
 
 .loginButton:hover:not(:disabled) {
-    background: #00b8d4;
+    background: var(--color-accent-strong);
 }
 
 .loginButton:active:not(:disabled) {
@@ -104,9 +104,9 @@
 
 .errorMessage {
     background: rgba(247, 118, 142, 0.15);
-    border: 1px solid #f7768e;
-    color: #f7768e;
-    border-radius: 2px;
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+    border-radius: var(--radius-md);
     padding: 12px;
     font-size: 0.9rem;
     margin-bottom: 20px;
@@ -119,14 +119,14 @@
     align-items: center;
     margin-top: 30px;
     font-size: 0.75rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .badge {
     background: rgba(0, 242, 254, 0.1);
-    color: #00f2fe;
+    color: var(--color-accent);
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-weight: 600;
 }
 

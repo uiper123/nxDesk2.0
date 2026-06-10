@@ -1,7 +1,7 @@
 .container {
     padding: 24px;
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: #e0e0e6;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
     max-width: 680px;
 }
 
@@ -22,7 +22,7 @@
 .sectionTitle {
     font-size: 1rem;
     font-weight: 600;
-    color: #00f2fe;
+    color: var(--color-accent);
     margin: 0 0 16px 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -53,14 +53,14 @@
 
 .settingInfo span {
     font-size: 0.8rem;
-    color: #565f89;
+    color: var(--color-text-muted);
 }
 
 .settingRow select {
     background: rgba(15, 16, 22, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
-    color: #e0e0e6;
+    color: var(--color-text-primary);
     padding: 8px 12px;
     font-size: 0.85rem;
     outline: none;
@@ -69,12 +69,12 @@
 .checkbox {
     width: 18px;
     height: 18px;
-    accent-color: #00f2fe;
+    accent-color: var(--color-accent);
     cursor: pointer;
 }
 
 .saveButton {
-    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #4facfe 100%);
     border: none;
     border-radius: 8px;
     padding: 12px 24px;
