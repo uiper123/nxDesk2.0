@@ -1,0 +1,41 @@
+.badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-base);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.checking .dot {
+    background: var(--color-warning);
+    animation: healthPulse 1.2s ease infinite;
+}
+
+.online .dot {
+    background: var(--color-success);
+    animation: healthPulse 2.4s ease infinite;
+}
+
+.offline .dot {
+    background: var(--color-danger);
+}
+
+.checking .label { color: var(--color-text-muted); }
+.online .label { color: var(--color-text-secondary); }
+.offline .label { color: var(--color-danger); }
+
+@keyframes healthPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(158, 206, 106, 0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(158, 206, 106, 0); }
+}

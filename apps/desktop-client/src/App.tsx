@@ -6,9 +6,11 @@ import { ActiveSession } from "./components/ActiveSession";
 import { Settings } from "./components/Settings";
 import { Logs } from "./components/Logs";
 import { AdminPanel } from "./components/AdminPanel";
+import { Dashboard } from "./components/Dashboard";
+import { ApiHealth } from "./components/ApiHealth";
 import "./App.css";
 
-type View = "hosts" | "admin" | "logs" | "settings";
+type View = "dashboard" | "hosts" | "admin" | "logs" | "settings";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,7 +21,7 @@ function App() {
   const [currentPort, setCurrentPort] = useState(22);
   const [currentUser, setCurrentUser] = useState("");
   const [currentDisplayId, setCurrentDisplayId] = useState<number | undefined>(undefined);
-  const [currentView, setCurrentView] = useState<View>("hosts");
+  const [currentView, setCurrentView] = useState<View>("dashboard");
 
   const handleLoginSuccess = (_host: string, _port: number, username: string) => {
     setCurrentUser(username);
@@ -80,6 +82,12 @@ function App() {
 
         <nav className="nav-menu">
           <button 
+            className={`nav-item ${currentView === "dashboard" ? "active" : ""}`}
+            onClick={() => setCurrentView("dashboard")}
+          >
+            📊 Dashboard
+          </button>
+          <button 
             className={`nav-item ${currentView === "hosts" ? "active" : ""}`}
             onClick={() => setCurrentView("hosts")}
           >
@@ -106,6 +114,7 @@ function App() {
         </nav>
 
         <div className="sidebar-footer">
+          <ApiHealth />
           <div className="user-profile">
             <span className="avatar">👤</span>
             <div className="user-info">
@@ -121,6 +130,9 @@ function App() {
 
       {/* Main Workspace Content */}
       <main className="workspace-content">
+        {currentView === "dashboard" && (
+          <Dashboard onNavigate={(view) => setCurrentView(view as View)} />
+        )}
         {currentView === "hosts" && <HostList onSelectHost={handleSelectHost} />}
         {currentView === "admin" && <AdminPanel />}
         {currentView === "logs" && <Logs />}
