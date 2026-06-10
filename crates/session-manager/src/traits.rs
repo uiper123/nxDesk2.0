@@ -1,10 +1,11 @@
 use anyhow::Result;
-use shared_types::{SessionInfo, SessionStatus};
+use shared_types::{SessionInfo, SessionKind, SessionStatus};
 
 pub trait UserSession: Send + Sync {
     fn id(&self) -> &str;
     fn username(&self) -> &str;
     fn display_id(&self) -> u8;
+    fn session_kind(&self) -> SessionKind;
     fn status(&self) -> SessionStatus;
     fn stop(&mut self) -> Result<()>;
 }

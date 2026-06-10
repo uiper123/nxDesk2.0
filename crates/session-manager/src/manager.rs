@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use shared_types::{SessionInfo, SessionStatus};
+use shared_types::{SessionInfo, SessionKind, SessionStatus};
 use crate::traits::{SessionManager, SessionBackend, DisplayAllocator, UserSession};
 
 struct ManagedSession {
@@ -58,6 +58,7 @@ impl SessionManager for LocalSessionManager {
             username: session.username().to_string(),
             display_id,
             start_time,
+            session_kind: session.session_kind(),
         };
 
         sessions.insert(info.id.clone(), ManagedSession {
@@ -87,6 +88,7 @@ impl SessionManager for LocalSessionManager {
                 username: managed.session.username().to_string(),
                 display_id: managed.session.display_id(),
                 start_time: managed.start_time,
+                session_kind: managed.session.session_kind(),
             })
         } else {
             bail!("Session not found: {}", session_id)
@@ -101,6 +103,7 @@ impl SessionManager for LocalSessionManager {
                 username: managed.session.username().to_string(),
                 display_id: managed.session.display_id(),
                 start_time: managed.start_time,
+                session_kind: managed.session.session_kind(),
             })
             .collect();
 
@@ -149,6 +152,7 @@ impl SessionManager for LocalSessionManager {
                                     username,
                                     display_id: display_num,
                                     start_time: 0,
+                                    session_kind: SessionKind::X11,
                                 });
                             }
                         }
@@ -179,9 +183,10 @@ impl SessionManager for LocalSessionManager {
                                                 if !list.iter().any(|s| s.display_id == disp_num) {
                                                     list.push(SessionInfo {
                                                         id: format!("system-wayland-{}", disp_num),
-                                                        username: format!("{} (Wayland)", username),
+                                                        username: username.clone(),
                                                         display_id: disp_num,
                                                         start_time: 0,
+                                                        session_kind: SessionKind::Wayland,
                                                     });
                                                 }
                                             }

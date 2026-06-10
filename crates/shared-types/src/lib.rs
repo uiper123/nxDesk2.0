@@ -1,6 +1,14 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Type, PartialEq, Eq)]
+pub enum SessionKind {
+    X11,
+    Wayland,
+    Virtual,
+    Unknown,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct ConnectionConfig {
     pub host: String,
@@ -22,6 +30,7 @@ pub struct SessionInfo {
     pub username: String,
     pub display_id: u8,
     pub start_time: u64,
+    pub session_kind: SessionKind,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Type, PartialEq, Eq)]

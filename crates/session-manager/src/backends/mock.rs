@@ -1,5 +1,5 @@
 use anyhow::Result;
-use shared_types::SessionStatus;
+use shared_types::{SessionKind, SessionStatus};
 use crate::traits::{SessionBackend, UserSession};
 
 pub struct MockUserSession {
@@ -31,6 +31,10 @@ impl UserSession for MockUserSession {
 
     fn display_id(&self) -> u8 {
         self.display_id
+    }
+
+    fn session_kind(&self) -> SessionKind {
+        SessionKind::Virtual
     }
 
     fn status(&self) -> SessionStatus {
