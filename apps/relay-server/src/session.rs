@@ -24,7 +24,9 @@ impl SessionRegistry {
     pub fn register_agent(&self, session_id: &str, sender: UnboundedSender<Vec<u8>>) {
         let mut inner = self.inner.lock().unwrap();
         inner.agents.insert(session_id.to_string(), sender);
-        inner.heartbeats.insert(session_id.to_string(), std::time::Instant::now());
+        inner
+            .heartbeats
+            .insert(session_id.to_string(), std::time::Instant::now());
     }
 
     pub fn register_client(&self, session_id: &str, sender: UnboundedSender<Vec<u8>>) {
@@ -41,20 +43,22 @@ impl SessionRegistry {
 
     pub fn update_heartbeat(&self, session_id: &str) {
         let mut inner = self.inner.lock().unwrap();
-        inner.heartbeats.insert(session_id.to_string(), std::time::Instant::now());
+        inner
+            .heartbeats
+            .insert(session_id.to_string(), std::time::Instant::now());
     }
 
     pub fn check_heartbeats(&self, timeout_secs: u64) -> Vec<String> {
         let mut inner = self.inner.lock().unwrap();
         let mut expired = Vec::new();
         let now = std::time::Instant::now();
-        
+
         for (session_id, last_seen) in &inner.heartbeats {
             if now.duration_since(*last_seen).as_secs() >= timeout_secs {
                 expired.push(session_id.clone());
             }
         }
-        
+
         for id in &expired {
             inner.agents.remove(id);
             inner.clients.remove(id);

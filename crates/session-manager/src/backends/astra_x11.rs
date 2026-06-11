@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
-use std::process::{Command, Child};
-use std::fs;
-use shared_types::{SessionKind, SessionStatus};
 use crate::traits::{SessionBackend, UserSession};
+use anyhow::{Context, Result};
+use shared_types::{SessionKind, SessionStatus};
+use std::fs;
+use std::process::{Child, Command};
 use tracing::{info, warn};
 
 fn resolve_uid(username: &str) -> Option<u32> {
@@ -50,7 +50,10 @@ fn prepare_user_command(username: &str, display_str: &str) -> Command {
     cmd.env("USER", username);
     cmd.env("LOGNAME", username);
     cmd.env("XDG_RUNTIME_DIR", &xdg_runtime);
-    cmd.env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={}/bus", xdg_runtime));
+    cmd.env(
+        "DBUS_SESSION_BUS_ADDRESS",
+        format!("unix:path={}/bus", xdg_runtime),
+    );
     cmd.env("DISPLAY", display_str);
     cmd.env_remove("WAYLAND_DISPLAY");
     cmd.env("XDG_SESSION_TYPE", "x11");
@@ -89,7 +92,10 @@ pub struct AstraX11UserSession {
 impl AstraX11UserSession {
     pub fn start(username: &str, display_id: u8) -> Result<Self> {
         let display_str = format!(":{}", display_id);
-        info!("Starting Astra X11 session for {} on display {}", username, display_str);
+        info!(
+            "Starting Astra X11 session for {} on display {}",
+            username, display_str
+        );
 
         let mut session_kind = detect_existing_session_kind(username, display_id);
 
@@ -97,7 +103,8 @@ impl AstraX11UserSession {
             None
         } else {
             let xvfb = Command::new("runuser")
-                .arg("-u").arg(username)
+                .arg("-u")
+                .arg(username)
                 .arg("--")
                 .arg("Xvfb")
                 .arg(&display_str)
@@ -115,7 +122,10 @@ impl AstraX11UserSession {
                     Some(c)
                 }
                 Err(e) => {
-                    warn!("Xvfb spawn failed: {}. Falling back to virtual session metadata only.", e);
+                    warn!(
+                        "Xvfb spawn failed: {}. Falling back to virtual session metadata only.",
+                        e
+                    );
                     session_kind = SessionKind::Virtual;
                     None
                 }
@@ -123,16 +133,22 @@ impl AstraX11UserSession {
         };
 
         let desktop_proc = if matches!(session_kind, SessionKind::Virtual) && xvfb_proc.is_some() {
-            let wms = vec!["fly-wm", "openbox", "kwin_x11", "mate-session", "xfce4-session", "i3", "xterm"];
+            let wms = vec![
+                "fly-wm",
+                "openbox",
+                "kwin_x11",
+                "mate-session",
+                "xfce4-session",
+                "i3",
+                "xterm",
+            ];
             let mut spawned = None;
             for wm in wms {
                 if !binary_exists(wm) {
                     continue;
                 }
                 info!("Trying to spawn window manager: {}", wm);
-                let child = prepare_user_command(username, &display_str)
-                    .arg(wm)
-                    .spawn();
+                let child = prepare_user_command(username, &display_str).arg(wm).spawn();
                 match child {
                     Ok(c) => {
                         info!("Successfully spawned window manager: {}", wm);
@@ -146,7 +162,10 @@ impl AstraX11UserSession {
             }
 
             if spawned.is_some() {
-                info!("Spawning desktop helper applications on display {}", display_str);
+                info!(
+                    "Spawning desktop helper applications on display {}",
+                    display_str
+                );
 
                 if binary_exists("xsetroot") {
                     let _ = prepare_user_command(username, &display_str)
@@ -155,7 +174,13 @@ impl AstraX11UserSession {
                         .spawn();
                 }
 
-                let terminals = vec!["konsole", "x-terminal-emulator", "mate-terminal", "gnome-terminal", "xterm"];
+                let terminals = vec![
+                    "konsole",
+                    "x-terminal-emulator",
+                    "mate-terminal",
+                    "gnome-terminal",
+                    "xterm",
+                ];
                 for term in terminals {
                     if !binary_exists(term) {
                         continue;

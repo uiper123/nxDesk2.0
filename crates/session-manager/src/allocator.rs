@@ -1,7 +1,7 @@
+use crate::traits::DisplayAllocator;
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::sync::Mutex;
-use crate::traits::DisplayAllocator;
 
 pub struct LocalDisplayAllocator {
     min_display: u8,
@@ -30,7 +30,11 @@ impl DisplayAllocator for LocalDisplayAllocator {
                 return Ok(display_id);
             }
         }
-        bail!("No available displays in range {}-{}", self.min_display, self.max_display)
+        bail!(
+            "No available displays in range {}-{}",
+            self.min_display,
+            self.max_display
+        )
     }
 
     fn release(&self, display_id: u8) {

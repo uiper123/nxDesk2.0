@@ -1,6 +1,6 @@
+use crate::traits::{SessionBackend, UserSession};
 use anyhow::Result;
 use shared_types::{SessionKind, SessionStatus};
-use crate::traits::{SessionBackend, UserSession};
 
 pub struct MockUserSession {
     id: String,

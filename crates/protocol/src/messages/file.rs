@@ -34,6 +34,9 @@ impl FileChunkHeader {
         offset_bytes.copy_from_slice(&data[8..16]);
         let offset = u64::from_be_bytes(offset_bytes);
 
-        Ok(Self { transfer_id, offset })
+        Ok(Self {
+            transfer_id,
+            offset,
+        })
     }
 }

@@ -1,7 +1,9 @@
 pub mod control;
-pub mod input;
 pub mod file;
+pub mod input;
 
-pub use control::{ControlMessage, ClientHello, ServerHello, StartSessionRequest, SessionStarted, ErrorMessage};
-pub use input::{InputEvent, MouseEvent, KeyboardEvent};
-pub use file::{FileMetadata, FileChunkHeader};
+pub use control::{
+    ClientHello, ControlMessage, ErrorMessage, ServerHello, SessionStarted, StartSessionRequest,
+};
+pub use file::{FileChunkHeader, FileMetadata};
+pub use input::{InputEvent, KeyboardEvent, MouseEvent};

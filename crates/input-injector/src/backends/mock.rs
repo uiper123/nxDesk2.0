@@ -1,7 +1,7 @@
+use crate::events::InputEvent;
+use crate::traits::{InputAuditSink, InputInjector, InputPolicy};
 use anyhow::{bail, Result};
 use std::sync::{Arc, Mutex};
-use crate::traits::{InputInjector, InputPolicy, InputAuditSink};
-use crate::events::InputEvent;
 
 pub struct MockInputInjector {
     policy: Arc<dyn InputPolicy>,
@@ -26,11 +26,15 @@ impl MockInputInjector {
 impl InputInjector for MockInputInjector {
     fn inject(&self, event: InputEvent) -> Result<()> {
         if !self.policy.is_allowed(&event) {
-            self.audit.audit_event("INPUT_REJECTED", &format!("Policy blocked event: {:?}", event));
+            self.audit.audit_event(
+                "INPUT_REJECTED",
+                &format!("Policy blocked event: {:?}", event),
+            );
             bail!("Input event rejected by security policy");
         }
-        
-        self.audit.audit_event("INPUT_INJECTED", &format!("Event: {:?}", event));
+
+        self.audit
+            .audit_event("INPUT_INJECTED", &format!("Event: {:?}", event));
         self.events.lock().unwrap().push(event);
         Ok(())
     }

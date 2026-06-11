@@ -1,12 +1,12 @@
-use anyhow::{bail, Result};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, AsyncReadExt, BufReader};
-use tokio::sync::mpsc;
 use crate::config::RelayConfig;
 use crate::session::SessionRegistry;
+use anyhow::{bail, Result};
 use audit::{AuditLog, AuditRecord};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpListener;
+use tokio::sync::mpsc;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct HandshakeRequest {
@@ -30,7 +30,11 @@ pub struct RelayServer {
 
 impl RelayServer {
     pub fn new(config: RelayConfig, registry: SessionRegistry, audit: Arc<AuditLog>) -> Self {
-        Self { config, registry, audit }
+        Self {
+            config,
+            registry,
+            audit,
+        }
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
@@ -43,11 +47,16 @@ impl RelayServer {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                let expired = self_clone.registry.check_heartbeats(self_clone.config.heartbeat_timeout_secs);
+                let expired = self_clone
+                    .registry
+                    .check_heartbeats(self_clone.config.heartbeat_timeout_secs);
                 for id in expired {
                     tracing::warn!("Session {} expired due to heartbeat timeout", id);
                     self_clone.audit.write_record(AuditRecord {
-                        timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                        timestamp: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
                         event_type: "RELAY_SESSION".to_string(),
                         username: "relay".to_string(),
                         ip_address: "127.0.0.1".to_string(),
@@ -106,7 +115,10 @@ impl RelayServer {
             writer.write_all(&err_resp).await?;
             writer.write_all(b"\n").await?;
             self.audit.write_record(AuditRecord {
-                timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
                 event_type: "RELAY_AUTH".to_string(),
                 username: "unknown".to_string(),
                 ip_address: "127.0.0.1".to_string(),
@@ -136,7 +148,10 @@ impl RelayServer {
         }
 
         self.audit.write_record(AuditRecord {
-            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             event_type: "RELAY_SESSION".to_string(),
             username: "relay".to_string(),
             ip_address: "127.0.0.1".to_string(),
@@ -157,7 +172,7 @@ impl RelayServer {
         let registry = self.registry.clone();
         let session_id_clone = session_id.clone();
         let role_clone = role.clone();
-        
+
         let mut reader_task = tokio::spawn(async move {
             let mut buffer = vec![0; 4096];
             loop {
@@ -189,12 +204,18 @@ impl RelayServer {
         // Clean up
         self.registry.unregister(&session_id);
         self.audit.write_record(AuditRecord {
-            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             event_type: "RELAY_SESSION".to_string(),
             username: "relay".to_string(),
             ip_address: "127.0.0.1".to_string(),
             action: format!("unregister_{}", role),
-            details: format!("Unregistered {} connection for session {}", role, session_id),
+            details: format!(
+                "Unregistered {} connection for session {}",
+                role, session_id
+            ),
         });
 
         Ok(())

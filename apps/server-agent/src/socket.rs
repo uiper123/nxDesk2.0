@@ -1,9 +1,9 @@
+use session_manager::{LocalSessionManager, SessionManager};
 use std::sync::Arc;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixListener;
 use tokio::sync::broadcast;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tracing::{info, warn, error};
-use session_manager::{LocalSessionManager, SessionManager};
+use tracing::{error, info, warn};
 
 /// Owner and environment details for a graphical display (X11 or Wayland).
 struct DisplayOwner {
@@ -53,8 +53,8 @@ fn resolve_display_owner(display_id: u32) -> Option<DisplayOwner> {
     let x_socket = format!("/tmp/.X11-unix/X{}", display_id);
     if let Ok(meta) = std::fs::metadata(&x_socket) {
         let uid = meta.uid();
-        let (username, home) = lookup_passwd_entry(uid)
-            .unwrap_or_else(|| ("root".to_string(), "/root".to_string()));
+        let (username, home) =
+            lookup_passwd_entry(uid).unwrap_or_else(|| ("root".to_string(), "/root".to_string()));
         let xdg_runtime = format!("/run/user/{}", uid);
         let wayland_socket = find_wayland_socket(std::path::Path::new(&xdg_runtime), display_id);
         return Some(DisplayOwner {
@@ -166,15 +166,27 @@ fn find_xauthority_from_xorg_proc(_owner_uid: u32) -> Option<String> {
 
 /// Build a command that runs `exec_cmd` as the display owner with a complete
 /// graphical user environment (X11 or Wayland).
-fn build_user_launch_command(owner: &DisplayOwner, display_id: u32, exec_cmd: &str) -> std::process::Command {
+fn build_user_launch_command(
+    owner: &DisplayOwner,
+    display_id: u32,
+    exec_cmd: &str,
+) -> std::process::Command {
     let display_str = format!(":{}", display_id);
     let mut cmd = std::process::Command::new("runuser");
-    cmd.arg("-u").arg(&owner.username).arg("--").arg("sh").arg("-c").arg(exec_cmd);
+    cmd.arg("-u")
+        .arg(&owner.username)
+        .arg("--")
+        .arg("sh")
+        .arg("-c")
+        .arg(exec_cmd);
     cmd.env("HOME", &owner.home);
     cmd.env("USER", &owner.username);
     cmd.env("LOGNAME", &owner.username);
     cmd.env("XDG_RUNTIME_DIR", &owner.xdg_runtime);
-    cmd.env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={}/bus", owner.xdg_runtime));
+    cmd.env(
+        "DBUS_SESSION_BUS_ADDRESS",
+        format!("unix:path={}/bus", owner.xdg_runtime),
+    );
     cmd.env("DISPLAY", &display_str);
 
     if let Some(ref wayland_socket) = owner.wayland_socket {
@@ -251,9 +263,18 @@ fn parse_meminfo_value(line: &str) -> u64 {
 fn read_load_average() -> (f64, f64, f64) {
     let contents = std::fs::read_to_string("/proc/loadavg").unwrap_or_default();
     let parts: Vec<&str> = contents.split_whitespace().collect();
-    let l1 = parts.first().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
-    let l5 = parts.get(1).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
-    let l15 = parts.get(2).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
+    let l1 = parts
+        .first()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let l5 = parts
+        .get(1)
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let l15 = parts
+        .get(2)
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
     (l1, l5, l15)
 }
 
@@ -287,7 +308,8 @@ pub async fn run_uds_listener(
     let listener = match UnixListener::bind(&path) {
         Ok(l) => {
             use std::os::unix::fs::PermissionsExt;
-            if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666)) {
+            if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666))
+            {
                 warn!("Failed to set 666 permissions on agent.sock: {}", e);
             }
             info!("Local control Unix socket bound to: {}", path);
@@ -308,7 +330,6 @@ pub async fn run_uds_listener(
                 match accept_res {
                     Ok((mut stream, _)) => {
                         let session_mgr_clone = session_mgr.clone();
-                        let server_start = server_start;
                         tokio::spawn(async move {
                             let mut buf = [0u8; 4096];
                             if let Ok(n) = stream.read(&mut buf).await {
@@ -342,7 +363,8 @@ fn handle_command(
 ) -> String {
     match command {
         "status" => {
-            let active_sessions = session_mgr.list_active_sessions()
+            let active_sessions = session_mgr
+                .list_active_sessions()
                 .map(|s| s.len())
                 .unwrap_or(0);
             let system = collect_system_metrics();
@@ -354,7 +376,10 @@ fn handle_command(
                 "active_sessions": active_sessions,
                 "system": system,
             });
-            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
         }
         "sessions" => {
             let sessions = session_mgr.list_active_sessions().unwrap_or_default();
@@ -363,30 +388,42 @@ fn handle_command(
                 .unwrap_or_default()
                 .as_secs();
 
-            let session_list: Vec<serde_json::Value> = sessions.iter().map(|s| {
-                serde_json::json!({
-                    "id": s.id,
-                    "username": s.username,
-                    "display_id": s.display_id,
-                    "start_time": s.start_time,
-                    "duration_seconds": now.saturating_sub(s.start_time),
-                    "session_kind": s.session_kind,
+            let session_list: Vec<serde_json::Value> = sessions
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "id": s.id,
+                        "username": s.username,
+                        "display_id": s.display_id,
+                        "start_time": s.start_time,
+                        "duration_seconds": now.saturating_sub(s.start_time),
+                        "session_kind": s.session_kind,
+                    })
                 })
-            }).collect();
+                .collect();
 
             let response = serde_json::json!({
                 "sessions": session_list,
                 "count": session_list.len(),
             });
-            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
         }
         "metrics" => {
             let system = collect_system_metrics();
-            format!("{}\n", serde_json::to_string_pretty(&system).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&system).unwrap_or_default()
+            )
         }
         "applications" => {
             let apps = list_installed_applications();
-            format!("{}\n", serde_json::to_string_pretty(&apps).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&apps).unwrap_or_default()
+            )
         }
         "health" => {
             let response = serde_json::json!({
@@ -394,7 +431,10 @@ fn handle_command(
                 "agent_uptime_seconds": server_start.elapsed().as_secs(),
                 "pid": std::process::id(),
             });
-            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
         }
         "users" => {
             let mut users = Vec::new();
@@ -406,7 +446,10 @@ fn handle_command(
                         let uid_str = parts[2];
                         let shell = parts[6];
                         if let Ok(uid) = uid_str.parse::<u32>() {
-                            if uid >= 1000 && uid < 60000 && !shell.ends_with("nologin") && !shell.ends_with("false") {
+                            if (1000..60000).contains(&uid)
+                                && !shell.ends_with("nologin")
+                                && !shell.ends_with("false")
+                            {
                                 users.push(username.to_string());
                             }
                         }
@@ -416,7 +459,10 @@ fn handle_command(
             let response = serde_json::json!({
                 "users": users
             });
-            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
         }
         cmd if cmd.starts_with("launch") => {
             // Expected format: "launch <display_id> <command...>"
@@ -425,14 +471,20 @@ fn handle_command(
                 let response = serde_json::json!({
                     "error": "Usage: launch <display_id> <command>"
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             }
 
             let Ok(display_id) = parts[1].parse::<u32>() else {
                 let response = serde_json::json!({
                     "error": "Invalid display ID"
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             };
             let exec_cmd = parts[2];
 
@@ -440,12 +492,19 @@ fn handle_command(
                 let response = serde_json::json!({
                     "error": format!("Display :{} not found. No X11 socket or Wayland session detected.", display_id)
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             };
 
             info!(
                 "Launching '{}' on display :{} as user {} (uid={}, wayland={})",
-                exec_cmd, display_id, owner.username, owner.uid, owner.wayland_socket.is_some()
+                exec_cmd,
+                display_id,
+                owner.username,
+                owner.uid,
+                owner.wayland_socket.is_some()
             );
 
             let mut launch_cmd = build_user_launch_command(&owner, display_id, exec_cmd);
@@ -472,10 +531,15 @@ fn handle_command(
                                     if detail.is_empty() { String::new() } else { format!(": {}", detail) }
                                 )
                             });
-                            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                            format!(
+                                "{}\n",
+                                serde_json::to_string_pretty(&response).unwrap_or_default()
+                            )
                         }
                         _ => {
-                            std::thread::spawn(move || { let _ = child.wait(); });
+                            std::thread::spawn(move || {
+                                let _ = child.wait();
+                            });
                             let response = serde_json::json!({
                                 "success": true,
                                 "message": format!(
@@ -483,7 +547,10 @@ fn handle_command(
                                     exec_cmd, display_id, owner.username
                                 )
                             });
-                            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                            format!(
+                                "{}\n",
+                                serde_json::to_string_pretty(&response).unwrap_or_default()
+                            )
                         }
                     }
                 }
@@ -491,7 +558,10 @@ fn handle_command(
                     let response = serde_json::json!({
                         "error": format!("Failed to spawn command: {}", e)
                     });
-                    format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    )
                 }
             }
         }
@@ -502,7 +572,10 @@ fn handle_command(
                 let response = serde_json::json!({
                     "error": "Usage: start_session <username>"
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             }
             let username = parts[1].trim();
             match session_mgr.start_session(username) {
@@ -517,13 +590,19 @@ fn handle_command(
                             "session_kind": info.session_kind,
                         }
                     });
-                    format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    )
                 }
                 Err(e) => {
                     let response = serde_json::json!({
                         "error": format!("Failed to start session: {}", e)
                     });
-                    format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    )
                 }
             }
         }
@@ -534,7 +613,10 @@ fn handle_command(
                 let response = serde_json::json!({
                     "error": "Usage: stop_session <session_id>"
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             }
             let session_id = parts[1].trim();
             match session_mgr.stop_session(session_id) {
@@ -543,13 +625,19 @@ fn handle_command(
                         "success": true,
                         "message": format!("Session {} stopped", session_id)
                     });
-                    format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    )
                 }
                 Err(e) => {
                     let response = serde_json::json!({
                         "error": format!("Failed to stop session: {}", e)
                     });
-                    format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    )
                 }
             }
         }
@@ -560,7 +648,10 @@ fn handle_command(
                 let response = serde_json::json!({
                     "error": "Usage: ensure_vnc <display_id>"
                 });
-                return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                return format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             }
             let display_str = parts[1].trim();
             if let Ok(display_id) = display_str.parse::<u32>() {
@@ -573,24 +664,34 @@ fn handle_command(
                         "success": true,
                         "port": port
                     });
-                    return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    return format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
                 }
 
                 let Some(owner) = resolve_display_owner(display_id) else {
                     let response = serde_json::json!({
                         "error": format!("Display :{} not found. No X11 socket or Wayland session detected.", display_id)
                     });
-                    return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    return format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
                 };
 
                 let has_wayland = owner.wayland_socket.is_some();
-                let has_x11 = std::path::Path::new(&format!("/tmp/.X11-unix/X{}", display_id)).exists();
+                let has_x11 =
+                    std::path::Path::new(&format!("/tmp/.X11-unix/X{}", display_id)).exists();
                 // Xwayland = both X11 socket and Wayland socket exist
                 let _is_xwayland = has_wayland && has_x11;
 
                 let mut cmd = if has_wayland {
                     // Wayland session detected — try wayvnc first
-                    let wayland_socket = owner.wayland_socket.clone().unwrap_or_else(|| "wayland-0".to_string());
+                    let wayland_socket = owner
+                        .wayland_socket
+                        .clone()
+                        .unwrap_or_else(|| "wayland-0".to_string());
 
                     let wayvnc_available = std::process::Command::new("sh")
                         .arg("-c")
@@ -633,7 +734,10 @@ fn handle_command(
                                     display_id
                                 )
                             });
-                            return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                            return format!(
+                                "{}\n",
+                                serde_json::to_string_pretty(&response).unwrap_or_default()
+                            );
                         }
 
                         let mut c = std::process::Command::new("runuser");
@@ -641,11 +745,13 @@ fn handle_command(
 
                         let port_str = port.to_string();
                         c.args([
-                            "-display", &display_arg,
+                            "-display",
+                            &display_arg,
                             "-shared",
                             "-forever",
                             "-nopw",
-                            "-rfbport", &port_str,
+                            "-rfbport",
+                            &port_str,
                             "-xkb",
                             "-localhost",
                             // Xwayland compatibility: disable extensions that may not work
@@ -675,7 +781,10 @@ fn handle_command(
                                 display_id
                             )
                         });
-                        return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                        return format!(
+                            "{}\n",
+                            serde_json::to_string_pretty(&response).unwrap_or_default()
+                        );
                     }
                 } else {
                     // Pure X11 session (no Wayland)
@@ -699,7 +808,10 @@ fn handle_command(
                                 display_id
                             )
                         });
-                        return format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default());
+                        return format!(
+                            "{}\n",
+                            serde_json::to_string_pretty(&response).unwrap_or_default()
+                        );
                     }
 
                     let mut c = std::process::Command::new("runuser");
@@ -707,11 +819,13 @@ fn handle_command(
 
                     let port_str = port.to_string();
                     c.args([
-                        "-display", &display_arg,
+                        "-display",
+                        &display_arg,
                         "-shared",
                         "-forever",
                         "-nopw",
-                        "-rfbport", &port_str,
+                        "-rfbport",
+                        &port_str,
                         "-xkb",
                         "-localhost",
                     ]);
@@ -749,15 +863,20 @@ fn handle_command(
                                 break;
                             }
                         }
-                        
+
                         if vnc_started {
                             info!("VNC server successfully started on port {}", port);
-                            std::thread::spawn(move || { let _ = child.wait(); });
+                            std::thread::spawn(move || {
+                                let _ = child.wait();
+                            });
                             let response = serde_json::json!({
                                 "success": true,
                                 "port": port
                             });
-                            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                            format!(
+                                "{}\n",
+                                serde_json::to_string_pretty(&response).unwrap_or_default()
+                            )
                         } else {
                             // Capture stderr from the failed VNC process for diagnostics
                             let mut stderr_text = String::new();
@@ -768,15 +887,24 @@ fn handle_command(
                             let _ = child.kill();
                             let _ = child.wait();
                             let mut detail = stderr_text.lines().last().unwrap_or("").to_string();
-                            if stderr_text.contains("Virtual Pointer") || stderr_text.contains("Screencopy") {
+                            if stderr_text.contains("Virtual Pointer")
+                                || stderr_text.contains("Screencopy")
+                            {
                                 detail = format!(
                                     "{} (Compositor protocol mismatch: wayvnc is only compatible with wlroots-based compositors like Sway/Hyprland. GNOME and KDE Plasma Wayland are not supported. Please log out and switch your session to X11 at the login screen.)",
                                     detail
                                 );
                             }
                             let msg = if has_wayland {
-                                format!("Wayland VNC server (wayvnc) failed to start on display :{}{}.", display_id,
-                                    if detail.is_empty() { String::new() } else { format!(": {}", detail) })
+                                format!(
+                                    "Wayland VNC server (wayvnc) failed to start on display :{}{}.",
+                                    display_id,
+                                    if detail.is_empty() {
+                                        String::new()
+                                    } else {
+                                        format!(": {}", detail)
+                                    }
+                                )
                             } else {
                                 format!("x11vnc failed to start on display :{}. The display may not be accessible or XAUTHORITY is incorrect{}.", display_id,
                                     if detail.is_empty() { String::new() } else { format!(": {}", detail) })
@@ -785,7 +913,10 @@ fn handle_command(
                             let response = serde_json::json!({
                                 "error": msg
                             });
-                            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                            format!(
+                                "{}\n",
+                                serde_json::to_string_pretty(&response).unwrap_or_default()
+                            )
                         }
                     }
                     Err(e) => {
@@ -793,14 +924,20 @@ fn handle_command(
                         let response = serde_json::json!({
                             "error": format!("Failed to spawn {}: {}", binary_name, e)
                         });
-                        format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                        format!(
+                            "{}\n",
+                            serde_json::to_string_pretty(&response).unwrap_or_default()
+                        )
                     }
                 }
             } else {
                 let response = serde_json::json!({
                     "error": "Invalid display ID"
                 });
-                format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+                format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                )
             }
         }
         _ => {
@@ -808,7 +945,10 @@ fn handle_command(
                 "error": "Unknown command",
                 "available_commands": ["status", "sessions", "metrics", "health", "users", "start_session <username>", "stop_session <id>", "applications", "launch <display_id> <command>", "ensure_vnc <display_id>"]
             });
-            format!("{}\n", serde_json::to_string_pretty(&response).unwrap_or_default())
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&response).unwrap_or_default()
+            )
         }
     }
 }
@@ -816,7 +956,7 @@ fn handle_command(
 fn list_installed_applications() -> serde_json::Value {
     let mut apps = Vec::new();
     let dirs = vec!["/usr/share/applications", "/usr/local/share/applications"];
-    
+
     for dir in dirs {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
@@ -826,7 +966,7 @@ fn list_installed_applications() -> serde_json::Value {
                         let mut name = None;
                         let mut exec = None;
                         let mut no_display = false;
-                        
+
                         for line in content.lines() {
                             if line.starts_with("Name=") && name.is_none() {
                                 name = Some(line["Name=".len()..].trim().to_string());
@@ -836,13 +976,13 @@ fn list_installed_applications() -> serde_json::Value {
                                     raw_exec.truncate(idx);
                                 }
                                 exec = Some(raw_exec.trim().to_string());
-                            } else if line.starts_with("NoDisplay=") {
-                                if line["NoDisplay=".len()..].trim().to_lowercase() == "true" {
+                            } else if let Some(stripped) = line.strip_prefix("NoDisplay=") {
+                                if stripped.trim().to_lowercase() == "true" {
                                     no_display = true;
                                 }
                             }
                         }
-                        
+
                         if let (Some(n), Some(e)) = (name, exec) {
                             if !no_display && !e.is_empty() {
                                 apps.push(serde_json::json!({

@@ -512,9 +512,8 @@ impl HostDiscovery {
     /// Сканирование всех настроенных хостов
     pub async fn discover_hosts(&self) -> Vec<Host> {
         let mut hosts = Vec::new();
-        let mut id_counter = 1;
 
-        for config in &self.config_hosts {
+        for (id_counter, config) in (1..).zip(self.config_hosts.iter()) {
             let is_online = self
                 .check_host_availability(&config.ip, config.ssh_port)
                 .await;
@@ -568,8 +567,6 @@ impl HostDiscovery {
                 active_sessions,
                 operating_system: os,
             });
-
-            id_counter += 1;
         }
 
         info!("Discovered {} hosts", hosts.len());
@@ -577,7 +574,7 @@ impl HostDiscovery {
     }
 
     /// Периодическое обновление статуса хостов
-    pub async fn refresh_host_status(&self, hosts: &mut Vec<Host>) {
+    pub async fn refresh_host_status(&self, hosts: &mut [Host]) {
         for host in hosts.iter_mut() {
             let port = self.get_port_for_host(&host.ip);
             let is_online = self.check_host_availability(&host.ip, port).await;

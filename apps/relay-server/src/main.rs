@@ -1,16 +1,17 @@
 pub mod config;
-pub mod session;
 pub mod server;
-pub mod tests;
+pub mod session;
+#[cfg(test)]
+mod tests;
 
+use crate::config::RelayConfig;
+use crate::server::RelayServer;
+use crate::session::SessionRegistry;
 use anyhow::Result;
+use audit::AuditLog;
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use crate::config::RelayConfig;
-use crate::session::SessionRegistry;
-use crate::server::RelayServer;
-use audit::AuditLog;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,7 +25,7 @@ async fn main() -> Result<()> {
     // Setup configuration
     let config = RelayConfig::default();
     let registry = SessionRegistry::new();
-    
+
     // Setup audit log path
     let temp_dir = std::env::temp_dir();
     let log_file = temp_dir.join("relay_audit.log");
@@ -35,7 +36,7 @@ async fn main() -> Result<()> {
     let server_task = tokio::spawn(server.run());
 
     info!("Relay Server is running. Press Ctrl+C to exit.");
-    
+
     tokio::select! {
         res = server_task => {
             if let Err(e) = res {

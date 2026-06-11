@@ -1,7 +1,8 @@
-use crate::traits::InputPolicy;
 use crate::events::InputEvent;
+use crate::traits::InputPolicy;
 use tracing::warn;
 
+#[derive(Default)]
 pub struct SecureInputPolicy;
 
 impl SecureInputPolicy {
@@ -28,16 +29,25 @@ impl InputPolicy for SecureInputPolicy {
             InputEvent::Hotkey { combo } => {
                 let lower = combo.to_lowercase();
                 // Block Ctrl+Alt+F1 to F12 and Ctrl+Alt+Delete
-                if lower.contains("ctrl") && lower.contains("alt") {
-                    if lower.contains("f1") || lower.contains("f2") || lower.contains("f3") 
-                        || lower.contains("f4") || lower.contains("f5") || lower.contains("f6")
-                        || lower.contains("f7") || lower.contains("f8") || lower.contains("f9")
-                        || lower.contains("f10") || lower.contains("f11") || lower.contains("f12")
-                        || lower.contains("del") || lower.contains("backspace") 
-                    {
-                        warn!("Blocked forbidden hotkey combo: {}", combo);
-                        return false;
-                    }
+                if lower.contains("ctrl")
+                    && lower.contains("alt")
+                    && (lower.contains("f1")
+                        || lower.contains("f2")
+                        || lower.contains("f3")
+                        || lower.contains("f4")
+                        || lower.contains("f5")
+                        || lower.contains("f6")
+                        || lower.contains("f7")
+                        || lower.contains("f8")
+                        || lower.contains("f9")
+                        || lower.contains("f10")
+                        || lower.contains("f11")
+                        || lower.contains("f12")
+                        || lower.contains("del")
+                        || lower.contains("backspace"))
+                {
+                    warn!("Blocked forbidden hotkey combo: {}", combo);
+                    return false;
                 }
                 true
             }

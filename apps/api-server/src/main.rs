@@ -33,7 +33,10 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/api/auth/login", post(handlers::login))
         .route("/api/sessions/start", post(handlers::start_session))
-        .route("/api/hosts", get(handlers::get_hosts).post(handlers::add_host))
+        .route(
+            "/api/hosts",
+            get(handlers::get_hosts).post(handlers::add_host),
+        )
         .route("/api/hosts/discovered", get(handlers::get_discovered_hosts))
         .route("/api/sessions/active", get(handlers::get_active_sessions))
         .route(
@@ -44,10 +47,7 @@ async fn main() -> Result<()> {
             "/api/hosts/{ip}/applications",
             get(handlers::get_applications),
         )
-        .route(
-            "/api/hosts/{ip}/users",
-            get(handlers::get_system_users),
-        )
+        .route("/api/hosts/{ip}/users", get(handlers::get_system_users))
         .route(
             "/api/sessions/{id}/launch",
             post(handlers::launch_application),
@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
                         ) {
                             let ip = _addr.ip().to_string();
                             let mut discovered = state_udp.discovered_hosts.write().await;
-                            
+
                             if let Some(existing) = discovered.iter_mut().find(|h| h.ip == ip) {
                                 let beacon_port = port as u16;
                                 if existing.port != beacon_port {

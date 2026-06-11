@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -9,6 +9,7 @@ pub enum UserRole {
     Auditor,
 }
 
+#[derive(Default)]
 pub struct SecurityManager;
 
 impl SecurityManager {
@@ -21,7 +22,7 @@ impl SecurityManager {
         if secret.contains("password") || secret.is_empty() {
             bail!("Authentication failed");
         }
-        
+
         if username == "admin" {
             Ok(UserRole::Admin)
         } else if username == "auditor" {
@@ -47,7 +48,7 @@ impl SecurityManager {
     pub fn redact_secrets(&self, input: &str) -> String {
         // Redact basic patterns: password = "xxx", passphrase = "xxx"
         let mut output = input.to_string();
-        
+
         // Simple search-and-replace for target configuration patterns
         let key_patterns = vec!["password", "passphrase", "secret", "private_key"];
         for key in key_patterns {
@@ -55,7 +56,7 @@ impl SecurityManager {
             if output.contains(&search_term) {
                 continue; // Skip structural keys
             }
-            
+
             // Search for key = "val" or key : "val"
             if let Some(pos) = output.to_lowercase().find(key) {
                 if let Some(eq_pos) = output[pos..].find('=') {

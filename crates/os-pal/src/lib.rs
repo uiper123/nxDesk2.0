@@ -1,6 +1,6 @@
-use anyhow::{Result, Context};
-use std::path::PathBuf;
+use anyhow::{Context, Result};
 use directories::ProjectDirs;
+use std::path::PathBuf;
 
 pub fn get_config_dir() -> Result<PathBuf> {
     let dirs = ProjectDirs::from("com", "ttgtiso", "desk")
@@ -22,13 +22,14 @@ pub fn get_log_dir() -> Result<PathBuf> {
 }
 
 pub fn execute_command(program: &str, args: &[&str]) -> Result<String> {
-    let output = std::process::Command::new(program)
-        .args(args)
-        .output()?;
-        
+    let output = std::process::Command::new(program).args(args).output()?;
+
     if !output.status.success() {
-        anyhow::bail!("Command failed: {}", String::from_utf8_lossy(&output.stderr));
+        anyhow::bail!(
+            "Command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }

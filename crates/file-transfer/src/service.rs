@@ -1,8 +1,8 @@
+use crate::traits::{FileTransferService, HashVerifier, TransferPolicy};
 use anyhow::{bail, Result};
+use audit::{AuditLog, AuditRecord};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use crate::traits::{FileTransferService, TransferPolicy, HashVerifier};
-use audit::{AuditLog, AuditRecord};
 
 struct FileSessionState {
     _id: String,
@@ -51,7 +51,7 @@ impl FileTransferService for DefaultFileTransferService {
         }
 
         let session_id = format!("tx-{}", uuid_simple());
-        
+
         let state = FileSessionState {
             _id: session_id.clone(),
             file_name: file_name.to_string(),
@@ -59,7 +59,10 @@ impl FileTransferService for DefaultFileTransferService {
             data: Vec::new(),
         };
 
-        self.sessions.lock().unwrap().insert(session_id.clone(), state);
+        self.sessions
+            .lock()
+            .unwrap()
+            .insert(session_id.clone(), state);
 
         self.audit.write_record(AuditRecord {
             timestamp: std::time::SystemTime::now()
@@ -70,7 +73,10 @@ impl FileTransferService for DefaultFileTransferService {
             username: "system_operator".to_string(),
             ip_address: "127.0.0.1".to_string(),
             action: "upload_start".to_string(),
-            details: format!("Started upload session: {} for file {}", session_id, file_name),
+            details: format!(
+                "Started upload session: {} for file {}",
+                session_id, file_name
+            ),
         });
 
         Ok(session_id)
@@ -122,10 +128,16 @@ impl FileTransferService for DefaultFileTransferService {
             event_type: "FILE_TRANSFER".to_string(),
             username: "system_operator".to_string(),
             ip_address: "127.0.0.1".to_string(),
-            action: if verified { "upload_success".to_string() } else { "upload_hash_mismatch".to_string() },
+            action: if verified {
+                "upload_success".to_string()
+            } else {
+                "upload_hash_mismatch".to_string()
+            },
             details: format!(
-                "Verify file {}: verified={}. Length={}", 
-                state.file_name, verified, state.data.len()
+                "Verify file {}: verified={}. Length={}",
+                state.file_name,
+                verified,
+                state.data.len()
             ),
         });
 

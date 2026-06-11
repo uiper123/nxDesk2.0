@@ -271,7 +271,7 @@ async fn handle_client_connection(
     let mut reader = tokio::io::BufReader::new(rx_socket);
     loop {
         let mut header = [0u8; 11];
-        if let Err(_) = reader.read_exact(&mut header).await {
+        if reader.read_exact(&mut header).await.is_err() {
             info!("Connection with {} closed by client", peer_addr);
             break;
         }
@@ -288,7 +288,7 @@ async fn handle_client_connection(
         let payload_len = u32::from_be_bytes([header[6], header[7], header[8], header[9]]) as usize;
 
         let mut payload = vec![0u8; payload_len];
-        if let Err(_) = reader.read_exact(&mut payload).await {
+        if reader.read_exact(&mut payload).await.is_err() {
             warn!("Connection with {} closed mid-frame", peer_addr);
             break;
         }
@@ -296,38 +296,34 @@ async fn handle_client_connection(
         bytes_received += 11 + payload_len as u64;
         TOTAL_BYTES_RECEIVED.fetch_add(11 + payload_len as u64, Ordering::Relaxed);
 
-        match ch {
-            2 => {
-                // Input channel
-                if let Ok(event) = InputEvent::from_bytes(&payload) {
-                    match event {
-                        InputEvent::Mouse(m) => {
-                            if m.event_type == 0x01 {
-                                if let Err(e) = injector.inject_mouse_move(m.x, m.y) {
-                                    warn!("Failed to inject mouse move: {:?}", e);
-                                }
-                            } else if m.event_type == 0x02 || m.event_type == 0x03 {
-                                if let Err(e) =
-                                    injector.inject_mouse_click(m.button, m.event_type == 0x02)
-                                {
-                                    warn!("Failed to inject mouse click: {:?}", e);
-                                }
-                            } else if m.event_type == 0x04 {
-                                if let Err(e) = injector.inject_mouse_scroll(m.scroll_delta) {
-                                    warn!("Failed to inject mouse scroll: {:?}", e);
-                                }
+        if ch == 2 {
+            // Input channel
+            if let Ok(event) = InputEvent::from_bytes(&payload) {
+                match event {
+                    InputEvent::Mouse(m) => {
+                        if m.event_type == 0x01 {
+                            if let Err(e) = injector.inject_mouse_move(m.x, m.y) {
+                                warn!("Failed to inject mouse move: {:?}", e);
+                            }
+                        } else if m.event_type == 0x02 || m.event_type == 0x03 {
+                            if let Err(e) =
+                                injector.inject_mouse_click(m.button, m.event_type == 0x02)
+                            {
+                                warn!("Failed to inject mouse click: {:?}", e);
+                            }
+                        } else if m.event_type == 0x04 {
+                            if let Err(e) = injector.inject_mouse_scroll(m.scroll_delta) {
+                                warn!("Failed to inject mouse scroll: {:?}", e);
                             }
                         }
-                        InputEvent::Keyboard(k) => {
-                            if let Err(e) = injector.inject_keypress(k.keysym, k.event_type == 0x05)
-                            {
-                                warn!("Failed to inject keypress: {:?}", e);
-                            }
+                    }
+                    InputEvent::Keyboard(k) => {
+                        if let Err(e) = injector.inject_keypress(k.keysym, k.event_type == 0x05) {
+                            warn!("Failed to inject keypress: {:?}", e);
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 

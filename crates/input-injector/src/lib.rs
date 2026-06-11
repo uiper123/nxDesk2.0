@@ -1,13 +1,13 @@
-pub mod traits;
+pub mod backends;
 pub mod events;
 pub mod policy;
-pub mod backends;
+pub mod traits;
 
-pub use traits::{InputInjector, KeyboardMapper, MouseMapper, InputPolicy, InputAuditSink};
-pub use events::InputEvent;
-pub use policy::SecureInputPolicy;
 pub use backends::mock::MockInputInjector;
 pub use backends::x11::X11InputInjector;
+pub use events::InputEvent;
+pub use policy::SecureInputPolicy;
+pub use traits::{InputAuditSink, InputInjector, InputPolicy, KeyboardMapper, MouseMapper};
 
 use std::sync::Mutex;
 
@@ -42,7 +42,11 @@ impl LegacyX11InputInjector {
         Ok(())
     }
 
-    pub fn inject_mouse_click(&self, button: shared_types::MouseButton, pressed: bool) -> anyhow::Result<()> {
+    pub fn inject_mouse_click(
+        &self,
+        button: shared_types::MouseButton,
+        pressed: bool,
+    ) -> anyhow::Result<()> {
         let (conn, _) = x11rb::connect(Some(&self._display))?;
         let detail = match button {
             shared_types::MouseButton::Left => 1,
@@ -51,13 +55,7 @@ impl LegacyX11InputInjector {
             shared_types::MouseButton::None => return Ok(()),
         };
         let type_id = if pressed { 4 } else { 5 }; // ButtonPress = 4, ButtonRelease = 5
-        conn.xtest_fake_input(
-            type_id,
-            detail,
-            0,
-            x11rb::NONE,
-            0, 0, 0,
-        )?;
+        conn.xtest_fake_input(type_id, detail, 0, x11rb::NONE, 0, 0, 0)?;
         conn.flush()?;
         Ok(())
     }
@@ -70,14 +68,18 @@ impl LegacyX11InputInjector {
             detail,
             0,
             x11rb::NONE,
-            0, 0, 0,
+            0,
+            0,
+            0,
         )?;
         conn.xtest_fake_input(
             5, // ButtonRelease
             detail,
             0,
             x11rb::NONE,
-            0, 0, 0,
+            0,
+            0,
+            0,
         )?;
         conn.flush()?;
         Ok(())
@@ -90,7 +92,7 @@ impl LegacyX11InputInjector {
         let max_keycode = setup.max_keycode;
         let count = max_keycode - min_keycode + 1;
         let reply = conn.get_keyboard_mapping(min_keycode, count)?.reply()?;
-        
+
         let keysyms_per_keycode = reply.keysyms_per_keycode as usize;
         let mut target_keycode = None;
         for (i, sym) in reply.keysyms.iter().enumerate() {
@@ -103,13 +105,7 @@ impl LegacyX11InputInjector {
 
         if let Some(keycode) = target_keycode {
             let type_id = if pressed { 2 } else { 3 }; // KeyPress = 2, KeyRelease = 3
-            conn.xtest_fake_input(
-                type_id,
-                keycode,
-                0,
-                x11rb::NONE,
-                0, 0, 0,
-            )?;
+            conn.xtest_fake_input(type_id, keycode, 0, x11rb::NONE, 0, 0, 0)?;
             conn.flush()?;
         }
         Ok(())
@@ -117,6 +113,7 @@ impl LegacyX11InputInjector {
 }
 
 // Simple Audit implementation for tests
+#[derive(Default)]
 pub struct TestAuditSink {
     records: Mutex<Vec<(String, String)>>,
 }
@@ -135,15 +132,18 @@ impl TestAuditSink {
 
 impl InputAuditSink for TestAuditSink {
     fn audit_event(&self, event_type: &str, details: &str) {
-        self.records.lock().unwrap().push((event_type.to_string(), details.to_string()));
+        self.records
+            .lock()
+            .unwrap()
+            .push((event_type.to_string(), details.to_string()));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use traits::InputInjector;
     use std::sync::Arc;
+    use traits::InputInjector;
 
     #[test]
     fn test_forbidden_hotkey_block() {
@@ -152,15 +152,21 @@ mod tests {
         let injector = MockInputInjector::new(policy, audit.clone());
 
         // Allowed combo
-        let ev1 = InputEvent::Hotkey { combo: "Ctrl+C".to_string() };
+        let ev1 = InputEvent::Hotkey {
+            combo: "Ctrl+C".to_string(),
+        };
         assert!(injector.inject(ev1).is_ok());
 
         // Forbidden VT-switching combo
-        let ev2 = InputEvent::Hotkey { combo: "Ctrl+Alt+F1".to_string() };
+        let ev2 = InputEvent::Hotkey {
+            combo: "Ctrl+Alt+F1".to_string(),
+        };
         assert!(injector.inject(ev2).is_err());
 
         // Forbidden Ctrl+Alt+Delete combo
-        let ev3 = InputEvent::Hotkey { combo: "Ctrl+Alt+Del".to_string() };
+        let ev3 = InputEvent::Hotkey {
+            combo: "Ctrl+Alt+Del".to_string(),
+        };
         assert!(injector.inject(ev3).is_err());
 
         // Check audit log
@@ -180,7 +186,9 @@ mod tests {
         let move_ev = InputEvent::MouseMove { x: 100, y: 200 };
         assert!(injector.inject(move_ev.clone()).is_ok());
 
-        let down_ev = InputEvent::MouseDown { button: shared_types::MouseButton::Left };
+        let down_ev = InputEvent::MouseDown {
+            button: shared_types::MouseButton::Left,
+        };
         assert!(injector.inject(down_ev.clone()).is_ok());
 
         let injected = injector.injected_events();
@@ -195,7 +203,7 @@ mod tests {
         let policy = Arc::new(SecureInputPolicy::new());
         let audit1 = Arc::new(TestAuditSink::new());
         let audit2 = Arc::new(TestAuditSink::new());
-        
+
         let injector1 = MockInputInjector::new(policy.clone(), audit1);
         let injector2 = MockInputInjector::new(policy, audit2);
 

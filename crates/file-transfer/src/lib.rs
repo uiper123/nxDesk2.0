@@ -1,12 +1,12 @@
-pub mod traits;
 pub mod policy;
-pub mod verifier;
 pub mod service;
+pub mod traits;
+pub mod verifier;
 
-pub use traits::{FileTransferService, TransferPolicy, HashVerifier, TransferSession};
 pub use policy::SecureTransferPolicy;
-pub use verifier::DefaultHashVerifier;
 pub use service::DefaultFileTransferService;
+pub use traits::{FileTransferService, HashVerifier, TransferPolicy, TransferSession};
+pub use verifier::DefaultHashVerifier;
 
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
@@ -28,7 +28,12 @@ impl FileTransferManager {
         if !target_path.starts_with(&self.base_dir) {
             bail!("Unauthorized path access attempt");
         }
-        tracing::debug!("Writing {} bytes to {:?} at offset {}", data.len(), target_path, offset);
+        tracing::debug!(
+            "Writing {} bytes to {:?} at offset {}",
+            data.len(),
+            target_path,
+            offset
+        );
         Ok(())
     }
 
@@ -37,7 +42,12 @@ impl FileTransferManager {
         if !target_path.starts_with(&self.base_dir) {
             bail!("Unauthorized path access attempt");
         }
-        tracing::debug!("Reading up to {} bytes from {:?} at offset {}", size, target_path, offset);
+        tracing::debug!(
+            "Reading up to {} bytes from {:?} at offset {}",
+            size,
+            target_path,
+            offset
+        );
         Ok(vec![])
     }
 }
@@ -45,8 +55,8 @@ impl FileTransferManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use audit::AuditLog;
+    use std::sync::Arc;
 
     #[test]
     fn test_file_upload_and_verify() {

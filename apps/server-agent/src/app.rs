@@ -27,7 +27,8 @@ impl AgentApp {
             config::AgentConfig::default()
         });
 
-        info!("Configuration loaded: bind={}:{}, max_sessions={}, audit_enabled={}",
+        info!(
+            "Configuration loaded: bind={}:{}, max_sessions={}, audit_enabled={}",
             config.bind_address,
             config.port,
             config.session_limits.max_concurrent_sessions,
@@ -38,7 +39,7 @@ impl AgentApp {
         let audit_log_path = Path::new("/var/log/ttgtiso-desk/audit.log");
         let audit_log = Arc::new(AuditLog::new(audit_log_path));
         let session_mgr = Arc::new(LocalSessionManager::new_default());
-        
+
         audit_log.log_auth_success("system", "127.0.0.1");
         info!("Audit log initialized at {:?}", audit_log_path);
 
@@ -75,7 +76,10 @@ impl AgentApp {
                     s
                 }
                 Err(e) => {
-                    warn!("Failed to bind UDP socket for auto-discovery broadcast: {}", e);
+                    warn!(
+                        "Failed to bind UDP socket for auto-discovery broadcast: {}",
+                        e
+                    );
                     return;
                 }
             };
@@ -96,14 +100,17 @@ impl AgentApp {
         });
 
         // 7. Wait for termination signals
-        info!("Server Agent is fully initialized. Ready for connections on port {}.", port);
-        
+        info!(
+            "Server Agent is fully initialized. Ready for connections on port {}.",
+            port
+        );
+
         #[cfg(target_os = "linux")]
         {
             use tokio::signal::unix::{signal, SignalKind};
             let mut sigterm = signal(SignalKind::terminate())?;
             let mut sigint = signal(SignalKind::interrupt())?;
-            
+
             tokio::select! {
                 _ = sigterm.recv() => { info!("Received SIGTERM signal"); }
                 _ = sigint.recv() => { info!("Received SIGINT signal"); }
@@ -117,11 +124,11 @@ impl AgentApp {
 
         // 8. Graceful shutdown sequence
         info!("Graceful shutdown initiated. Notifying background tasks...");
-        
+
         // Log final stats
         let stats = crate::handler::connection_stats();
         info!("Final connection statistics: {}", stats);
-        
+
         let _ = shutdown_tx.send(());
 
         // Wait for tasks with timeout
@@ -158,7 +165,7 @@ mod tests {
         // Create UDS path in local target/debug/ or workspace dir
         let temp_dir = std::env::current_dir().unwrap().join("target");
         let uds_path = temp_dir.join("test_agent_shutdown.sock");
-        
+
         let (shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
         let session_mgr = Arc::new(LocalSessionManager::new_default());
 
@@ -178,11 +185,11 @@ mod tests {
         assert!(send_res.is_ok());
 
         // Wait for task to stop
-        let task_res = tokio::time::timeout(
-            tokio::time::Duration::from_secs(2),
-            uds_task
-        ).await;
+        let task_res = tokio::time::timeout(tokio::time::Duration::from_secs(2), uds_task).await;
 
-        assert!(task_res.is_ok(), "UDS listener did not shut down gracefully in time");
+        assert!(
+            task_res.is_ok(),
+            "UDS listener did not shut down gracefully in time"
+        );
     }
 }

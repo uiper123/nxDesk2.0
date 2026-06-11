@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use thiserror::Error;
 
 pub mod messages;
@@ -54,18 +54,18 @@ impl Frame {
             bail!(ProtocolError::UnsupportedVersion(version));
         }
         let channel_id = data[5];
-        
+
         let mut len_bytes = [0u8; 4];
         len_bytes.copy_from_slice(&data[6..10]);
         let length = u32::from_be_bytes(len_bytes);
-        
+
         let flags = data[10];
-        
+
         if data.len() < 11 + length as usize {
             bail!("Payload incomplete");
         }
         let payload = data[11..11 + length as usize].to_vec();
-        
+
         Ok(Frame {
             header: FrameHeader {
                 version,
@@ -81,9 +81,9 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use messages::control::{ControlMessage, ClientHello};
-    use messages::input::{InputEvent, MouseEvent, KeyboardEvent};
+    use messages::control::{ClientHello, ControlMessage};
     use messages::file::FileChunkHeader;
+    use messages::input::{InputEvent, KeyboardEvent, MouseEvent};
     use shared_types::MouseButton;
 
     #[test]
@@ -156,4 +156,3 @@ mod tests {
         assert_eq!(header, parsed);
     }
 }
-

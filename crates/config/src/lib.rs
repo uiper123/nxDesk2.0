@@ -81,14 +81,10 @@ pub fn load_config_from_file(path: &Path) -> Result<AgentConfig> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     let config: AgentConfig = match ext {
-        "toml" => {
-            toml::from_str(&contents)
-                .with_context(|| format!("Failed to parse TOML config: {:?}", path))?
-        }
-        "json" => {
-            serde_json::from_str(&contents)
-                .with_context(|| format!("Failed to parse JSON config: {:?}", path))?
-        }
+        "toml" => toml::from_str(&contents)
+            .with_context(|| format!("Failed to parse TOML config: {:?}", path))?,
+        "json" => serde_json::from_str(&contents)
+            .with_context(|| format!("Failed to parse JSON config: {:?}", path))?,
         _ => {
             // Try TOML first, then JSON
             toml::from_str(&contents)
@@ -107,8 +103,8 @@ pub fn save_config(config: &AgentConfig, path: &Path) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let contents = toml::to_string_pretty(config)
-        .context("Failed to serialize configuration to TOML")?;
+    let contents =
+        toml::to_string_pretty(config).context("Failed to serialize configuration to TOML")?;
     std::fs::write(path, contents)
         .with_context(|| format!("Failed to write config file: {:?}", path))?;
 
@@ -141,7 +137,7 @@ mod tests {
                 "enable_audit_logs": true
             }
         }"#;
-        
+
         let parsed: AgentConfig = serde_json::from_str(json_data).unwrap();
         assert_eq!(parsed.port, 2222);
         assert!(!parsed.security_policy.allow_password_auth);

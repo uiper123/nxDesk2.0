@@ -1,10 +1,10 @@
-pub mod traits;
 pub mod policy;
 pub mod sync;
+pub mod traits;
 
-pub use traits::{ClipboardContent, ClipboardProvider, ClipboardPolicy, ClipboardSyncService};
 pub use policy::ConfigurableClipboardPolicy;
 pub use sync::DefaultClipboardSyncService;
+pub use traits::{ClipboardContent, ClipboardPolicy, ClipboardProvider, ClipboardSyncService};
 
 use anyhow::Result;
 use std::sync::Mutex;
@@ -33,8 +33,8 @@ impl ClipboardProvider for MockClipboardProvider {
     }
 }
 
-use std::process::{Command, Stdio};
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 pub struct X11ClipboardProvider {
     display: String,
@@ -83,9 +83,7 @@ impl ClipboardProvider for X11ClipboardProvider {
                     Ok(Some(ClipboardContent::Text(text)))
                 }
             }
-            _ => {
-                Ok(self.fallback_store.lock().unwrap().clone())
-            }
+            _ => Ok(self.fallback_store.lock().unwrap().clone()),
         }
     }
 
@@ -144,8 +142,8 @@ impl ClipboardSync {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use audit::AuditLog;
+    use std::sync::Arc;
 
     #[test]
     fn test_text_clipboard_sync() {
@@ -154,15 +152,21 @@ mod tests {
         let audit = Arc::new(AuditLog::new(&temp_dir.join("test_clipboard_audit.log")));
         let sync_service = DefaultClipboardSyncService::new(policy, audit);
 
-        let local_provider = MockClipboardProvider::new(Some(ClipboardContent::Text("Hello, Astra!".to_string())));
+        let local_provider =
+            MockClipboardProvider::new(Some(ClipboardContent::Text("Hello, Astra!".to_string())));
         let remote_provider = MockClipboardProvider::new(None);
 
         // Sync local to remote
-        assert!(sync_service.sync_to_remote(&local_provider, &remote_provider).is_ok());
+        assert!(sync_service
+            .sync_to_remote(&local_provider, &remote_provider)
+            .is_ok());
 
         // Read from remote
         let remote_content = remote_provider.read().unwrap();
-        assert_eq!(remote_content, Some(ClipboardContent::Text("Hello, Astra!".to_string())));
+        assert_eq!(
+            remote_content,
+            Some(ClipboardContent::Text("Hello, Astra!".to_string()))
+        );
     }
 
     #[test]
@@ -176,13 +180,17 @@ mod tests {
         let sync_service = DefaultClipboardSyncService::new(policy_arc, audit);
 
         // Content fits limit (7 chars)
-        let local_ok = MockClipboardProvider::new(Some(ClipboardContent::Text("1234567".to_string())));
+        let local_ok =
+            MockClipboardProvider::new(Some(ClipboardContent::Text("1234567".to_string())));
         let remote_dest = MockClipboardProvider::new(None);
         assert!(sync_service.sync_to_remote(&local_ok, &remote_dest).is_ok());
 
         // Content exceeds limit (11 chars)
-        let local_bad = MockClipboardProvider::new(Some(ClipboardContent::Text("12345678901".to_string())));
+        let local_bad =
+            MockClipboardProvider::new(Some(ClipboardContent::Text("12345678901".to_string())));
         let remote_dest_bad = MockClipboardProvider::new(None);
-        assert!(sync_service.sync_to_remote(&local_bad, &remote_dest_bad).is_err());
+        assert!(sync_service
+            .sync_to_remote(&local_bad, &remote_dest_bad)
+            .is_err());
     }
 }

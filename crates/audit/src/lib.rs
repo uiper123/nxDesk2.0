@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::fs::{OpenOptions, create_dir_all};
+use std::fs::{create_dir_all, OpenOptions};
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -36,7 +36,7 @@ impl AuditLog {
         let serialized = serde_json::to_string(&record).unwrap_or_default();
         // Log to tracing as well
         tracing::info!(target: "audit", "{}", serialized);
-        
+
         // Write to file
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
         match OpenOptions::new()
@@ -46,11 +46,19 @@ impl AuditLog {
         {
             Ok(mut file) => {
                 if let Err(e) = writeln!(file, "{}", serialized) {
-                    tracing::warn!("Failed to write audit record to {:?}: {}", self.log_file_path, e);
+                    tracing::warn!(
+                        "Failed to write audit record to {:?}: {}",
+                        self.log_file_path,
+                        e
+                    );
                 }
             }
             Err(e) => {
-                tracing::warn!("Failed to open audit log file {:?}: {}", self.log_file_path, e);
+                tracing::warn!(
+                    "Failed to open audit log file {:?}: {}",
+                    self.log_file_path,
+                    e
+                );
             }
         }
     }
@@ -103,16 +111,15 @@ impl AuditLog {
     pub fn read_last_records(&self, count: usize) -> Vec<AuditRecord> {
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
         match std::fs::read_to_string(&self.log_file_path) {
-            Ok(contents) => {
-                contents.lines()
-                    .rev()
-                    .take(count)
-                    .filter_map(|line| serde_json::from_str::<AuditRecord>(line).ok())
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                    .collect()
-            }
+            Ok(contents) => contents
+                .lines()
+                .rev()
+                .take(count)
+                .filter_map(|line| serde_json::from_str::<AuditRecord>(line).ok())
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -143,7 +150,7 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let log_file = temp_dir.join("test_audit.log");
         let _audit = AuditLog::new(&log_file);
-        
+
         let record = AuditRecord {
             timestamp: 1234567890,
             event_type: "TEST".to_string(),
@@ -152,7 +159,7 @@ mod tests {
             action: "test_action".to_string(),
             details: "testing audit subsystem".to_string(),
         };
-        
+
         let serialized = serde_json::to_string(&record).unwrap();
         assert!(serialized.contains("\"username\":\"vladimir\""));
         assert!(serialized.contains("\"event_type\":\"TEST\""));

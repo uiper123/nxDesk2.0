@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use protocol::Frame;
 use shared_types::ConnectionConfig;
-use tokio::net::TcpStream;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use std::sync::atomic::{AtomicU64, Ordering};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::net::TcpStream;
 
 /// Real TCP transport for the TTGT protocol.
 /// Connects to a remote host, performs handshake, and relays frames.
@@ -57,35 +57,41 @@ impl TcpTransport {
     }
 
     pub async fn send_frame(&mut self, frame: Frame) -> Result<()> {
-        let writer = self.writer.as_mut()
-            .context("Transport not connected")?;
+        let writer = self.writer.as_mut().context("Transport not connected")?;
 
         let bytes = frame.to_bytes();
-        writer.write_all(&bytes).await
+        writer
+            .write_all(&bytes)
+            .await
             .context("Failed to write frame to transport")?;
-        writer.flush().await
+        writer
+            .flush()
+            .await
             .context("Failed to flush transport writer")?;
 
         self.frames_sent.fetch_add(1, Ordering::Relaxed);
-        self.bytes_sent.fetch_add(bytes.len() as u64, Ordering::Relaxed);
+        self.bytes_sent
+            .fetch_add(bytes.len() as u64, Ordering::Relaxed);
 
         Ok(())
     }
 
     pub async fn receive_frame(&mut self) -> Result<Frame> {
-        let reader = self.reader.as_mut()
-            .context("Transport not connected")?;
+        let reader = self.reader.as_mut().context("Transport not connected")?;
 
         // Read 11-byte header first (TTGT magic + version + channel + length + flags)
         let mut header = [0u8; 11];
-        reader.read_exact(&mut header).await
+        reader
+            .read_exact(&mut header)
+            .await
             .context("Failed to read frame header")?;
 
         if &header[0..4] != b"TTGT" {
             anyhow::bail!("Invalid magic bytes in received frame");
         }
 
-        let payload_length = u32::from_be_bytes([header[6], header[7], header[8], header[9]]) as usize;
+        let payload_length =
+            u32::from_be_bytes([header[6], header[7], header[8], header[9]]) as usize;
 
         // Read payload
         let mut full_data = Vec::with_capacity(11 + payload_length);
@@ -93,17 +99,19 @@ impl TcpTransport {
 
         if payload_length > 0 {
             let mut payload = vec![0u8; payload_length];
-            reader.read_exact(&mut payload).await
+            reader
+                .read_exact(&mut payload)
+                .await
                 .context("Failed to read frame payload")?;
             full_data.extend_from_slice(&payload);
         }
 
         let total_bytes = full_data.len() as u64;
-        let frame = Frame::from_bytes(&full_data)
-            .context("Failed to parse received frame")?;
+        let frame = Frame::from_bytes(&full_data).context("Failed to parse received frame")?;
 
         self.frames_received.fetch_add(1, Ordering::Relaxed);
-        self.bytes_received.fetch_add(total_bytes, Ordering::Relaxed);
+        self.bytes_received
+            .fetch_add(total_bytes, Ordering::Relaxed);
 
         Ok(frame)
     }
@@ -115,7 +123,11 @@ impl TcpTransport {
         }
         self.reader = None;
         self.connected = false;
-        tracing::info!("Disconnected from {}:{}", self.config.host, self.config.port);
+        tracing::info!(
+            "Disconnected from {}:{}",
+            self.config.host,
+            self.config.port
+        );
         Ok(())
     }
 

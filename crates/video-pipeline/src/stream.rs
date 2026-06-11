@@ -1,5 +1,7 @@
+use crate::traits::{
+    CaptureSource, EncodedFrame, FrameClock, VideoEncoder, VideoMetrics, VideoStream,
+};
 use anyhow::Result;
-use crate::traits::{VideoStream, CaptureSource, VideoEncoder, FrameClock, EncodedFrame, VideoMetrics};
 use std::time::Instant;
 
 pub struct LocalVideoStream {
@@ -36,12 +38,13 @@ impl VideoStream for LocalVideoStream {
         let start = Instant::now();
 
         // 2. Capture raw frame
-        let raw = self.capture.capture_frame();
-        if raw.is_err() {
-            self.metrics.frames_dropped += 1;
-            return Err(raw.unwrap_err());
-        }
-        let raw_data = raw.unwrap();
+        let raw_data = match self.capture.capture_frame() {
+            Ok(data) => data,
+            Err(e) => {
+                self.metrics.frames_dropped += 1;
+                return Err(e);
+            }
+        };
 
         // 3. Encode raw frame
         let frame = self.encoder.encode_frame(&raw_data)?;
@@ -49,11 +52,11 @@ impl VideoStream for LocalVideoStream {
         // 4. Update metrics
         self.metrics.frames_captured += 1;
         self.metrics.bytes_sent += frame.data.len() as u64;
-        
+
         let latency = start.elapsed().as_millis() as f64;
-        self.metrics.average_latency_ms = (self.metrics.average_latency_ms 
-            * (self.metrics.frames_captured - 1) as f64 
-            + latency) / self.metrics.frames_captured as f64;
+        self.metrics.average_latency_ms =
+            (self.metrics.average_latency_ms * (self.metrics.frames_captured - 1) as f64 + latency)
+                / self.metrics.frames_captured as f64;
 
         Ok(frame)
     }

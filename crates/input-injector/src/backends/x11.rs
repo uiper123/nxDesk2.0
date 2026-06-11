@@ -1,7 +1,7 @@
+use crate::events::InputEvent;
+use crate::traits::{InputAuditSink, InputInjector, InputPolicy};
 use anyhow::{bail, Result};
 use std::sync::Arc;
-use crate::traits::{InputInjector, InputPolicy, InputAuditSink};
-use crate::events::InputEvent;
 use tracing::{info, warn};
 use x11rb::connection::Connection;
 use x11rb::protocol::xtest::ConnectionExt as _;
@@ -13,7 +13,11 @@ pub struct X11InputInjector {
 }
 
 impl X11InputInjector {
-    pub fn new(display: &str, policy: Arc<dyn InputPolicy>, audit: Arc<dyn InputAuditSink>) -> Self {
+    pub fn new(
+        display: &str,
+        policy: Arc<dyn InputPolicy>,
+        audit: Arc<dyn InputAuditSink>,
+    ) -> Self {
         Self {
             display: display.to_string(),
             policy,
@@ -26,7 +30,10 @@ impl X11InputInjector {
         let (conn, _) = match x11rb::connect(Some(&self.display)) {
             Ok(c) => c,
             Err(e) => {
-                warn!("X11 Connection failed on display {}: {:?}. Falling back to logging only.", self.display, e);
+                warn!(
+                    "X11 Connection failed on display {}: {:?}. Falling back to logging only.",
+                    self.display, e
+                );
                 return Ok(());
             }
         };
@@ -56,7 +63,9 @@ impl X11InputInjector {
                     detail,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.flush()?;
             }
@@ -72,7 +81,9 @@ impl X11InputInjector {
                     detail,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.flush()?;
             }
@@ -84,14 +95,18 @@ impl X11InputInjector {
                     detail,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.xtest_fake_input(
                     5, // ButtonRelease
                     detail,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.flush()?;
             }
@@ -101,7 +116,9 @@ impl X11InputInjector {
                     *keycode as u8,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.flush()?;
             }
@@ -111,7 +128,9 @@ impl X11InputInjector {
                     *keycode as u8,
                     0,
                     x11rb::NONE,
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                 )?;
                 conn.flush()?;
             }
@@ -119,7 +138,10 @@ impl X11InputInjector {
                 info!("TextInput injection of '{}' is handled key-by-key", text);
             }
             InputEvent::Hotkey { combo } => {
-                info!("Hotkey combo injection of '{}' is handled key-by-key", combo);
+                info!(
+                    "Hotkey combo injection of '{}' is handled key-by-key",
+                    combo
+                );
             }
         }
 
@@ -130,7 +152,10 @@ impl X11InputInjector {
 impl InputInjector for X11InputInjector {
     fn inject(&self, event: InputEvent) -> Result<()> {
         if !self.policy.is_allowed(&event) {
-            self.audit.audit_event("INPUT_REJECTED", &format!("Policy blocked event: {:?}", event));
+            self.audit.audit_event(
+                "INPUT_REJECTED",
+                &format!("Policy blocked event: {:?}", event),
+            );
             bail!("Input event rejected by security policy");
         }
 

@@ -21,7 +21,7 @@ impl MockVideoEncoder {
 }
 
 fn infer_rgba_dimensions(raw_frame: &[u8]) -> Result<(u32, u32)> {
-    if raw_frame.len() % 4 != 0 {
+    if !raw_frame.len().is_multiple_of(4) {
         anyhow::bail!(
             "RGBA frame size must be divisible by 4, got {}",
             raw_frame.len()
@@ -266,7 +266,7 @@ impl VideoEncoder for GStreamerEncoder {
 
         if let Some(pipeline) = &self.pipeline {
             if let Some(enc) = pipeline.by_name("enc") {
-                let _ = enc.set_property("bitrate", bitrate_kbps);
+                enc.set_property("bitrate", bitrate_kbps);
                 info!(
                     "Successfully adjusted GStreamer encoder bitrate to {} kbps",
                     bitrate_kbps
@@ -432,7 +432,7 @@ impl VideoEncoder for SoftwareFallbackEncoder {
 
         if let Some(pipeline) = &self.pipeline {
             if let Some(enc) = pipeline.by_name("enc") {
-                let _ = enc.set_property("bitrate", bitrate_kbps);
+                enc.set_property("bitrate", bitrate_kbps);
                 info!(
                     "Successfully adjusted GStreamer software encoder bitrate to {} kbps",
                     bitrate_kbps

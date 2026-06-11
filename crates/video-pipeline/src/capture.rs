@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::traits::CaptureSource;
+use anyhow::Result;
 use tracing::warn;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{ConnectionExt as _, ImageFormat};
@@ -26,14 +26,14 @@ impl CaptureSource for MockCaptureSource {
         // Generate a fake RGBA image buffer (width * height * 4)
         let size = (self.width * self.height * 4) as usize;
         let mut buffer = vec![0u8; size];
-        
+
         // Fill with dummy color pattern based on frame count
         let pattern = (self.frame_count % 256) as u8;
         for i in 0..(size / 4) {
-            buffer[i * 4] = pattern;       // Red
-            buffer[i * 4 + 1] = 128;       // Green
-            buffer[i * 4 + 2] = 200;       // Blue
-            buffer[i * 4 + 3] = 255;       // Alpha
+            buffer[i * 4] = pattern; // Red
+            buffer[i * 4 + 1] = 128; // Green
+            buffer[i * 4 + 2] = 200; // Blue
+            buffer[i * 4 + 3] = 255; // Alpha
         }
         Ok(buffer)
     }
@@ -81,23 +81,23 @@ impl CaptureSource for X11CaptureSource {
                                     let data = reply.data;
                                     let pixels = (self.width * self.height) as usize;
                                     let mut rgba = vec![0u8; pixels * 4];
-                                    
+
                                     if data.len() >= pixels * 4 {
                                         // 32-bit (BGRA/BGRx) image data
                                         for i in 0..pixels {
-                                            rgba[i * 4] = data[i * 4 + 2];     // Red
+                                            rgba[i * 4] = data[i * 4 + 2]; // Red
                                             rgba[i * 4 + 1] = data[i * 4 + 1]; // Green
-                                            rgba[i * 4 + 2] = data[i * 4];     // Blue
-                                            rgba[i * 4 + 3] = 255;             // Alpha
+                                            rgba[i * 4 + 2] = data[i * 4]; // Blue
+                                            rgba[i * 4 + 3] = 255; // Alpha
                                         }
                                         return Ok(rgba);
                                     } else if data.len() >= pixels * 3 {
                                         // 24-bit (BGR) image data
                                         for i in 0..pixels {
-                                            rgba[i * 4] = data[i * 3 + 2];     // Red
+                                            rgba[i * 4] = data[i * 3 + 2]; // Red
                                             rgba[i * 4 + 1] = data[i * 3 + 1]; // Green
-                                            rgba[i * 4 + 2] = data[i * 3];     // Blue
-                                            rgba[i * 4 + 3] = 255;             // Alpha
+                                            rgba[i * 4 + 2] = data[i * 3]; // Blue
+                                            rgba[i * 4 + 3] = 255; // Alpha
                                         }
                                         return Ok(rgba);
                                     } else {
@@ -120,11 +120,17 @@ impl CaptureSource for X11CaptureSource {
                         }
                     }
                 } else {
-                    warn!("X11 screen not found for index {}. Falling back to mock.", screen_num);
+                    warn!(
+                        "X11 screen not found for index {}. Falling back to mock.",
+                        screen_num
+                    );
                 }
             }
             Err(e) => {
-                warn!("X11 connection failed on display {}: {:?}. Falling back to mock.", self.display, e);
+                warn!(
+                    "X11 connection failed on display {}: {:?}. Falling back to mock.",
+                    self.display, e
+                );
             }
         }
 

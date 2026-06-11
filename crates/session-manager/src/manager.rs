@@ -1,8 +1,8 @@
+use crate::traits::{DisplayAllocator, SessionBackend, SessionManager, UserSession};
 use anyhow::{bail, Result};
+use shared_types::{SessionInfo, SessionKind, SessionStatus};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use shared_types::{SessionInfo, SessionKind, SessionStatus};
-use crate::traits::{SessionManager, SessionBackend, DisplayAllocator, UserSession};
 
 struct ManagedSession {
     session: Box<dyn UserSession>,
@@ -28,17 +28,19 @@ impl LocalSessionManager {
 impl SessionManager for LocalSessionManager {
     fn start_session(&self, username: &str) -> Result<SessionInfo> {
         let mut sessions = self.sessions.lock().unwrap();
-        
+
         // Prevent duplicate active sessions for the same user
         for managed in sessions.values() {
-            if managed.session.username() == username && managed.session.status() == SessionStatus::Active {
+            if managed.session.username() == username
+                && managed.session.status() == SessionStatus::Active
+            {
                 bail!("User {} already has an active session", username);
             }
         }
 
         // Allocate a display
         let display_id = self.allocator.allocate()?;
-        
+
         // Create session
         let session = match self.backend.create_session(username, display_id) {
             Ok(s) => s,
@@ -61,10 +63,13 @@ impl SessionManager for LocalSessionManager {
             session_kind: session.session_kind(),
         };
 
-        sessions.insert(info.id.clone(), ManagedSession {
-            session,
-            start_time,
-        });
+        sessions.insert(
+            info.id.clone(),
+            ManagedSession {
+                session,
+                start_time,
+            },
+        );
         Ok(info)
     }
 
@@ -97,7 +102,8 @@ impl SessionManager for LocalSessionManager {
 
     fn list_active_sessions(&self) -> Result<Vec<SessionInfo>> {
         let sessions = self.sessions.lock().unwrap();
-        let mut list: Vec<SessionInfo> = sessions.values()
+        let mut list: Vec<SessionInfo> = sessions
+            .values()
             .map(|managed| SessionInfo {
                 id: managed.session.id().to_string(),
                 username: managed.session.username().to_string(),
@@ -130,8 +136,8 @@ impl SessionManager for LocalSessionManager {
             if let Ok(entries) = fs::read_dir("/tmp/.X11-unix") {
                 for entry in entries.flatten() {
                     if let Some(filename) = entry.file_name().to_str() {
-                        if filename.starts_with('X') {
-                            if let Ok(display_num) = filename[1..].parse::<u8>() {
+                        if let Some(stripped) = filename.strip_prefix('X') {
+                            if let Ok(display_num) = stripped.parse::<u8>() {
                                 if list.iter().any(|s| s.display_id == display_num) {
                                     continue;
                                 }
@@ -141,7 +147,8 @@ impl SessionManager for LocalSessionManager {
                                     if uid == 0 {
                                         "root (DM/System)".to_string()
                                     } else {
-                                        resolve_username(uid).unwrap_or_else(|| format!("user_{}", uid))
+                                        resolve_username(uid)
+                                            .unwrap_or_else(|| format!("user_{}", uid))
                                     }
                                 } else {
                                     "unknown".to_string()
@@ -171,11 +178,17 @@ impl SessionManager for LocalSessionManager {
                                 for ue in user_entries.flatten() {
                                     if let Some(fname) = ue.file_name().to_str() {
                                         if fname.starts_with("wayland-") && !fname.contains('.') {
-                                            if let Ok(disp_num) = fname["wayland-".len()..].parse::<u8>() {
-                                                let username = resolve_username(uid).unwrap_or_else(|| format!("user_{}", uid));
-                                                
+                                            if let Ok(disp_num) =
+                                                fname["wayland-".len()..].parse::<u8>()
+                                            {
+                                                let username = resolve_username(uid)
+                                                    .unwrap_or_else(|| format!("user_{}", uid));
+
                                                 // If we already have a root DM session on this display, remove it in favor of the real user session
-                                                if let Some(pos) = list.iter().position(|s| s.display_id == disp_num && s.username == "root (DM/System)") {
+                                                if let Some(pos) = list.iter().position(|s| {
+                                                    s.display_id == disp_num
+                                                        && s.username == "root (DM/System)"
+                                                }) {
                                                     list.remove(pos);
                                                 }
 

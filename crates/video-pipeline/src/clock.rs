@@ -1,5 +1,5 @@
-use std::time::{Duration, Instant};
 use crate::traits::FrameClock;
+use std::time::{Duration, Instant};
 
 pub struct SimpleFrameClock {
     fps: u32,
@@ -19,12 +19,12 @@ impl FrameClock for SimpleFrameClock {
     fn tick(&mut self) -> Duration {
         let frame_duration = Duration::from_secs_f64(1.0 / self.fps as f64);
         let elapsed = self.last_tick.elapsed();
-        
+
         if elapsed < frame_duration {
             let sleep_dur = frame_duration - elapsed;
             std::thread::sleep(sleep_dur);
         }
-        
+
         let now = Instant::now();
         let delta = now.duration_since(self.last_tick);
         self.last_tick = now;

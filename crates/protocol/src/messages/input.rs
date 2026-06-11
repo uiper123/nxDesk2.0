@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use shared_types::MouseButton;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,19 +64,19 @@ impl InputEvent {
                     0x03 => MouseButton::Middle,
                     _ => MouseButton::None,
                 };
-                
+
                 let mut x_bytes = [0u8; 2];
                 x_bytes.copy_from_slice(&data[2..4]);
                 let x = u16::from_be_bytes(x_bytes);
-                
+
                 let mut y_bytes = [0u8; 2];
                 y_bytes.copy_from_slice(&data[4..6]);
                 let y = u16::from_be_bytes(y_bytes);
-                
+
                 let mut scroll_bytes = [0u8; 2];
                 scroll_bytes.copy_from_slice(&data[6..8]);
                 let scroll_delta = i16::from_be_bytes(scroll_bytes);
-                
+
                 Ok(InputEvent::Mouse(MouseEvent {
                     event_type,
                     button,
@@ -92,11 +92,8 @@ impl InputEvent {
                 let mut keysym_bytes = [0u8; 4];
                 keysym_bytes.copy_from_slice(&data[1..5]);
                 let keysym = u32::from_be_bytes(keysym_bytes);
-                
-                Ok(InputEvent::Keyboard(KeyboardEvent {
-                    event_type,
-                    keysym,
-                }))
+
+                Ok(InputEvent::Keyboard(KeyboardEvent { event_type, keysym }))
             }
             _ => bail!("Unknown input event type: {}", event_type),
         }

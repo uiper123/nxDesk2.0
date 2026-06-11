@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::events::InputEvent;
+use anyhow::Result;
 
 pub trait KeyboardMapper: Send + Sync {
     fn map_key(&self, keycode: u32, layout: &str) -> Result<u32>;

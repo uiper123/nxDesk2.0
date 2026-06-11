@@ -1,6 +1,6 @@
+use crate::traits::HashVerifier;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use crate::traits::HashVerifier;
 
 pub struct DefaultHashVerifier;
 

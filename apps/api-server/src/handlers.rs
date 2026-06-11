@@ -1,13 +1,13 @@
 use axum::{
-    extract::{Path, State, Query},
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
 };
 use futures_util::{SinkExt, StreamExt};
-use tokio::net::TcpStream;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::sync::Arc;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tracing::info;
 
 use crate::models::*;
@@ -131,7 +131,9 @@ pub struct AddHostRequest {
     pub port: u16,
 }
 
-pub async fn get_discovered_hosts(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Host>>, StatusCode> {
+pub async fn get_discovered_hosts(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<Host>>, StatusCode> {
     let hosts = state.discovered_hosts.read().await;
     Ok(Json(hosts.clone()))
 }
@@ -141,7 +143,7 @@ pub async fn add_host(
     Json(payload): Json<AddHostRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let mut hosts = state.hosts.write().await;
-    
+
     // Check for duplicates
     if hosts.iter().any(|h| h.ip == payload.ip) {
         return Ok(Json(serde_json::json!({
@@ -149,7 +151,7 @@ pub async fn add_host(
             "message": "Host with this IP already exists in registry"
         })));
     }
-    
+
     let next_id = (hosts.len() + 1).to_string();
     hosts.push(Host {
         id: next_id,
@@ -160,14 +162,22 @@ pub async fn add_host(
         active_sessions: 0,
         operating_system: "Unknown".to_string(),
     });
-    
+
     // Try to save to hosts.toml
-    let toml_str = "[[hosts]]\n".to_string() + &hosts.iter().map(|h| {
-        format!("name = \"{}\"\nip = \"{}\"\nssh_port = {}\n", h.name, h.ip, h.port)
-    }).collect::<Vec<_>>().join("\n[[hosts]]\n");
-    
+    let toml_str = "[[hosts]]\n".to_string()
+        + &hosts
+            .iter()
+            .map(|h| {
+                format!(
+                    "name = \"{}\"\nip = \"{}\"\nssh_port = {}\n",
+                    h.name, h.ip, h.port
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n[[hosts]]\n");
+
     let _ = std::fs::write("hosts.toml", toml_str);
-    
+
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Host added"
@@ -325,8 +335,8 @@ pub async fn launch_application(
             }
         }
     } else {
-        if session_id.starts_with("system-display-") {
-            if let Ok(display_id) = session_id["system-display-".len()..].parse::<u32>() {
+        if let Some(stripped) = session_id.strip_prefix("system-display-") {
+            if let Ok(display_id) = stripped.parse::<u32>() {
                 let host_ip = "127.0.0.1".to_string();
                 let port = 22;
                 match state
@@ -364,12 +374,11 @@ pub async fn vnc_ws_handler(
     ws.on_upgrade(move |socket| handle_vnc_socket(socket, params, state))
 }
 
-async fn handle_vnc_socket(
-    ws: WebSocket,
-    params: VncQueryParams,
-    state: Arc<AppState>,
-) {
-    info!("Upgraded connection to WebSocket for VNC. Host: {}, Display: {}", params.host, params.display);
+async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<AppState>) {
+    info!(
+        "Upgraded connection to WebSocket for VNC. Host: {}, Display: {}",
+        params.host, params.display
+    );
 
     // 1. Get host port (fallback to 2222)
     let mut port = 2222;
@@ -381,43 +390,63 @@ async fn handle_vnc_socket(
     }
 
     // 2. Contact agent to ensure VNC is running for the display
-    let vnc_port = match state.discovery.ensure_vnc_on_host(&params.host, port, params.display).await {
+    let vnc_port = match state
+        .discovery
+        .ensure_vnc_on_host(&params.host, port, params.display)
+        .await
+    {
         Ok(res) => {
             if let Some(err_msg) = res.get("error").and_then(|e| e.as_str()) {
-                tracing::error!("Agent refused to start VNC for display {}: {}", params.display, err_msg);
+                tracing::error!(
+                    "Agent refused to start VNC for display {}: {}",
+                    params.display,
+                    err_msg
+                );
                 let mut ws_sender = ws.split().0;
-                let _ = ws_sender.send(Message::Close(Some(axum::extract::ws::CloseFrame {
-                    code: 4000,
-                    reason: err_msg.to_string().into(),
-                }))).await;
+                let _ = ws_sender
+                    .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                        code: 4000,
+                        reason: err_msg.to_string().into(),
+                    })))
+                    .await;
                 return;
             }
             if let Some(p) = res.get("port").and_then(|p| p.as_u64()) {
                 p as u16
             } else {
-                tracing::warn!("Agent response missing port field, using default for display {}", params.display);
+                tracing::warn!(
+                    "Agent response missing port field, using default for display {}",
+                    params.display
+                );
                 5900 + params.display as u16
             }
         }
         Err(e) => {
             tracing::error!("Failed to ensure VNC on host {}: {}", params.host, e);
             let mut ws_sender = ws.split().0;
-            let _ = ws_sender.send(Message::Close(Some(axum::extract::ws::CloseFrame {
-                code: 4001,
-                reason: format!("Agent communication error: {}", e).into(),
-            }))).await;
+            let _ = ws_sender
+                .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                    code: 4001,
+                    reason: format!("Agent communication error: {}", e).into(),
+                })))
+                .await;
             return;
         }
     };
 
     // 3. Connect to target TCP VNC port
     let target_addr = format!("{}:{}", params.host, vnc_port);
-    info!("Connecting WebSocket proxy to VNC TCP target: {}", target_addr);
-    
+    info!(
+        "Connecting WebSocket proxy to VNC TCP target: {}",
+        target_addr
+    );
+
     let tcp_stream = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        TcpStream::connect(&target_addr)
-    ).await {
+        TcpStream::connect(&target_addr),
+    )
+    .await
+    {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => {
             tracing::error!("Failed to connect to VNC target {}: {}", target_addr, e);
@@ -459,7 +488,11 @@ async fn handle_vnc_socket(
             if n == 0 {
                 break;
             }
-            if ws_sender.send(Message::Binary(buf[..n].to_vec().into())).await.is_err() {
+            if ws_sender
+                .send(Message::Binary(buf[..n].to_vec().into()))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -470,7 +503,10 @@ async fn handle_vnc_socket(
         _ = server_to_client => {}
     }
 
-    info!("VNC WebSocket proxy connection closed for host={}", params.host);
+    info!(
+        "VNC WebSocket proxy connection closed for host={}",
+        params.host
+    );
 }
 
 pub async fn upload_file(
@@ -479,16 +515,16 @@ pub async fn upload_file(
 ) -> Result<axum::Json<serde_json::Value>, axum::http::StatusCode> {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     let desktop = std::path::PathBuf::from(home).join("Desktop");
-    
+
     let _ = std::fs::create_dir_all(&desktop);
-    
+
     let file_path = desktop.join(&filename);
     tracing::info!("Uploading file to: {:?}", file_path);
-    
+
     match std::fs::write(&file_path, body) {
-        Ok(_) => Ok(axum::Json(serde_json::json!({ 
-            "success": true, 
-            "message": format!("Файл успешно загружен на рабочий стол: {}", filename) 
+        Ok(_) => Ok(axum::Json(serde_json::json!({
+            "success": true,
+            "message": format!("Файл успешно загружен на рабочий стол: {}", filename)
         }))),
         Err(e) => {
             tracing::error!("Failed to save uploaded file: {}", e);
@@ -505,7 +541,10 @@ pub async fn get_system_users(
     match state.discovery.get_system_users_for_host(&ip, port).await {
         Ok(json) => {
             if let Some(users) = json.get("users").and_then(|u| u.as_array()) {
-                let list = users.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+                let list = users
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
                 Ok(Json(list))
             } else {
                 Ok(Json(vec![]))
