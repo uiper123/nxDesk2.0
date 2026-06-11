@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Settings.module.css";
 import { apiService } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
+import { invoke } from "@tauri-apps/api/core";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 export const Settings: React.FC = () => {
     const { showToast } = useToast();
@@ -13,6 +16,9 @@ export const Settings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState<string>("Checking for updates...");
+    const [currentVersion, setCurrentVersion] = useState<string>("0.1.0");
+    const [updateBusy, setUpdateBusy] = useState(false);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -31,7 +37,50 @@ export const Settings: React.FC = () => {
         };
 
         fetchSettings();
+
+        const loadVersion = async () => {
+            try {
+                const version = await invoke<string>("get_app_version");
+                setCurrentVersion(version);
+            } catch (err) {
+                logger.error("settings", "Error getting app version", err);
+            }
+        };
+
+        loadVersion();
     }, []);
+
+    const handleCheckUpdates = async () => {
+        setUpdateBusy(true);
+        setUpdateStatus("Checking for updates...");
+        try {
+            const update = await check();
+            if (!update) {
+                setUpdateStatus("No updates available.");
+                return;
+            }
+
+            setUpdateStatus(`Found ${update.version}. Downloading and installing...`);
+            await update.downloadAndInstall((event) => {
+                if (event.event === "Started") {
+                    setUpdateStatus(`Downloading ${event.data.contentLength} bytes...`);
+                }
+                if (event.event === "Progress") {
+                    setUpdateStatus(`Downloading: ${event.data.chunkLength} bytes received...`);
+                }
+                if (event.event === "Finished") {
+                    setUpdateStatus("Installing update...");
+                }
+            });
+            setUpdateStatus("Update installed. Restarting...");
+            await relaunch();
+        } catch (err) {
+            setUpdateStatus(err instanceof Error ? err.message : "Update check failed");
+            logger.error("settings", "Update check failed", err);
+        } finally {
+            setUpdateBusy(false);
+        }
+    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -111,6 +160,20 @@ export const Settings: React.FC = () => {
                         <option value="software">Software Fallback (OpenH264)</option>
                     </select>
                 </div>
+            </div>
+
+            <div className={styles.section}>
+                <h3 className={styles.sectionTitle}>Application Updates</h3>
+                <div className={styles.settingRow}>
+                    <div className={styles.settingInfo}>
+                        <label>Current Version</label>
+                        <span>{currentVersion}</span>
+                    </div>
+                    <button type="button" className={styles.saveButton} onClick={handleCheckUpdates} disabled={updateBusy}>
+                        {updateBusy ? "Checking..." : "Check for Updates"}
+                    </button>
+                </div>
+                <div className={styles.stateText}>{updateStatus}</div>
             </div>
 
             <div className={styles.section}>

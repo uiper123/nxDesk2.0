@@ -58,3 +58,38 @@ npm install
 ```bash
 npm run dev
 ```
+
+## Система обновлений
+
+Проект использует GitHub Releases как канал доставки обновлений для обоих компонентов.
+
+### Выпуск новой версии
+```bash
+./scripts/bump-version.sh 0.2.0   # обновит версии, создаст коммит и тег v0.2.0
+git push origin main --tags        # пуш тега запускает workflow .github/workflows/release.yml
+```
+Workflow собирает:
+- **Desktop-клиент** (Linux `.deb`/`.AppImage`/`.rpm`, Windows `.msi`/`.exe`) через `tauri-action` с подписанными артефактами обновлений и файлом `latest.json`;
+- **Серверный агент** (`ttgtiso-desk-agent-linux-x86_64` + `SHA256SUMS` + скрипты установки/обновления).
+
+### Обновление desktop-клиента
+Клиент проверяет обновления через Tauri Updater (Settings → Application Updates → "Check for Updates"). Обновление скачивается с GitHub Releases, проверяется по встроенной криптографической подписи и устанавливается с перезапуском приложения.
+
+Для подписи обновлений в CI необходимо добавить секреты репозитория:
+- `TAURI_SIGNING_PRIVATE_KEY` — приватный ключ (`tauri signer generate`);
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — пароль ключа (пустая строка, если без пароля).
+
+Публичный ключ хранится в `apps/desktop-client/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
+
+### Обновление серверного агента
+```bash
+# установка сразу из GitHub-релиза
+sudo ./scripts/install-agent.sh --from-github
+
+# проверка наличия обновлений (exit 10 = доступно обновление)
+ttgtiso-desk-update --check
+
+# обновление с авто-бэкапом и откатом при сбое запуска
+sudo ttgtiso-desk-update
+```
+Скрипт `update-agent.sh` скачивает свежий бинарник из последнего релиза, проверяет SHA256, делает резервную копию текущего бинарника (`/usr/bin/ttgtiso-desk-agent.bak`) и автоматически откатывается, если сервис не стартует. Подробнее: `docs/update-strategy.md`.

@@ -9,6 +9,18 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
   "app": {
     "windows": [
       {
@@ -21,15 +33,12 @@
       "csp": null
     }
   },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBRUZBRjlENkJDNjU0M0QKUldROVZNWnJuYS92dXBaTTVYQVBZd2xNQ25kRlJkaFBmZkVhRW9sdFd2Y3JpM0ttQXdYcVlvbEcK",
+      "endpoints": [
+        "https://github.com/uiper123/nxDesk2.0/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

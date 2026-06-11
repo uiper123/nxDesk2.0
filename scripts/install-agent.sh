@@ -8,9 +8,14 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 UNATTENDED=false
-if [[ "$1" == "--unattended" ]]; then
-  UNATTENDED=true
-fi
+FROM_GITHUB=false
+REPO="${TTGTISO_REPO:-uiper123/nxDesk2.0}"
+for arg in "$@"; do
+  case "$arg" in
+    --unattended) UNATTENDED=true ;;
+    --from-github) FROM_GITHUB=true ;;
+  esac
+done
 
 echo "============================================="
 echo "Installing TTGTiSO-Desk Remote Desktop Agent"
@@ -57,8 +62,28 @@ chmod 750 "$CONF_DIR"
 echo "Stopping existing agent service if running..."
 systemctl stop ttgtiso-desk-agent 2>/dev/null || true
 
+# Download binary from the latest GitHub release if requested
+if [ "$FROM_GITHUB" = true ]; then
+  echo "Downloading latest agent binary from GitHub releases (${REPO})..."
+  TMP_BIN="$(mktemp /tmp/ttgtiso-agent.XXXXXX)"
+  curl -fsSL "https://github.com/${REPO}/releases/latest/download/ttgtiso-desk-agent-linux-x86_64" -o "$TMP_BIN"
+  TMP_SUMS="$(mktemp /tmp/ttgtiso-sums.XXXXXX)"
+  if curl -fsSL "https://github.com/${REPO}/releases/latest/download/SHA256SUMS" -o "$TMP_SUMS"; then
+    echo "Verifying checksum..."
+    EXPECTED="$(grep ' ttgtiso-desk-agent-linux-x86_64$' "$TMP_SUMS" | awk '{print $1}')"
+    ACTUAL="$(sha256sum "$TMP_BIN" | awk '{print $1}')"
+    if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "$ACTUAL" ]; then
+      echo "Error: Checksum mismatch for downloaded binary." >&2
+      rm -f "$TMP_BIN" "$TMP_SUMS"
+      exit 1
+    fi
+  else
+    echo "Warning: SHA256SUMS not found in release; skipping checksum verification." >&2
+  fi
+  cp "$TMP_BIN" "$BIN_PATH"
+  rm -f "$TMP_BIN" "$TMP_SUMS"
 # Copy binary (assuming compiled binary is in target/release/ or current folder)
-if [ -f "./target/release/server-agent" ]; then
+elif [ -f "./target/release/server-agent" ]; then
   echo "Copying compiled release binary..."
   cp "./target/release/server-agent" "$BIN_PATH"
 elif [ -f "./server-agent" ]; then
@@ -100,6 +125,15 @@ enable_audit_logs = true
 EOF
   fi
   chmod 600 "$CONF_DIR/agent.toml"
+fi
+
+# Install the self-update helper if present
+if [ -f "./scripts/update-agent.sh" ]; then
+  echo "Installing update helper to /usr/bin/ttgtiso-desk-update..."
+  install -m 755 "./scripts/update-agent.sh" /usr/bin/ttgtiso-desk-update
+elif [ -f "./update-agent.sh" ]; then
+  echo "Installing update helper to /usr/bin/ttgtiso-desk-update..."
+  install -m 755 "./update-agent.sh" /usr/bin/ttgtiso-desk-update
 fi
 
 # Copy systemd unit file
