@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -17,8 +19,53 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 jobs:
+  check-and-tag:
+    name: Check Version and Auto-Tag
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Version
+        id: check
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            else
+              echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            fi
+            exit 0
+          fi
+
+          VERSION=$(jq -r '.version' apps/desktop-client/src-tauri/tauri.conf.json)
+          TAG="v$VERSION"
+          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Skipping build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist. Creating and pushing it..."
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
   build-agent:
     name: Build Server Agent (Linux x86_64)
+    needs: check-and-tag
+    if: needs.check-and-tag.outputs.should_build == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -63,6 +110,10 @@ jobs:
 
   build-desktop-client:
     name: Build Desktop Client (${{ matrix.platform }})
+    needs: check-and-tag
+    if: needs.check-and-tag.outputs.should_build == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -122,7 +173,10 @@ jobs:
 
   publish-agent:
     name: Attach Agent Artifacts to Release
-    needs: [build-agent, build-desktop-client]
+    needs: [check-and-tag, build-agent, build-desktop-client]
+    if: needs.check-and-tag.outputs.should_build == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Download Agent Artifacts
