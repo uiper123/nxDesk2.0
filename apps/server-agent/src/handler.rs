@@ -10,7 +10,8 @@ use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 use video_pipeline::traits::VideoStream;
 use video_pipeline::{
-    make_capture_source, LocalVideoStream, SimpleFrameClock, SoftwareFallbackEncoder,
+    delta::DeltaEncoder, make_capture_source, monitors, LocalVideoStream, SimpleFrameClock,
+    SoftwareFallbackEncoder,
 };
 
 /// Global connection statistics
@@ -132,6 +133,8 @@ async fn handle_client_connection(
 
     let mut target_username = None;
     let mut target_display_id = None;
+    let mut target_monitor_index = None;
+    let mut requested_codec = None;
 
     if payload_length > 0 && payload_length < 65536 {
         let mut payload = vec![0u8; payload_length];
@@ -150,6 +153,12 @@ async fn handle_client_connection(
                 }
                 if let Some(display_id) = json_val.get("display_id").and_then(|d| d.as_u64()) {
                     target_display_id = Some(display_id as u8);
+                }
+                if let Some(mi) = json_val.get("monitor_index").and_then(|d| d.as_u64()) {
+                    target_monitor_index = Some(mi as u32);
+                }
+                if let Some(codec) = json_val.get("codec").and_then(|c| c.as_str()) {
+                    requested_codec = Some(codec.to_string());
                 }
             }
         }
@@ -219,11 +228,103 @@ async fn handle_client_connection(
 
     // Spawn Video Streaming Task
     let display_clone = display_str.clone();
+    let monitor_index = target_monitor_index.unwrap_or(0);
+    let want_delta = std::env::var("TTGTISO_DELTA").map(|v| v == "1").unwrap_or(false)
+        || matches!(
+            requested_codec.as_deref(),
+            Some("video.delta") | Some("delta")
+        );
+    let fps = std::env::var("TTGTISO_FPS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|f| *f >= 1 && *f <= 60)
+        .unwrap_or(15);
     let video_task = tokio::spawn(async move {
-        // Start streaming 15 FPS
-        let capture = make_capture_source(&display_clone, 1920, 1080);
+        // Resolve the requested monitor so we capture its real geometry rather
+        // than always assuming a single 1920x1080 primary display.
+        let mons = monitors::enumerate(&display_clone, 1920, 1080);
+        let mon = mons
+            .iter()
+            .find(|m| m.index == monitor_index)
+            .or_else(|| mons.first())
+            .cloned()
+            .unwrap_or(video_pipeline::traits::Monitor {
+                index: 0,
+                name: "Primary".to_string(),
+                width: 1920,
+                height: 1080,
+                x: 0,
+                y: 0,
+                is_primary: true,
+            });
+        info!(
+            "Video stream: display={} monitor={} ({}x{}) encoder={} fps={}",
+            display_clone,
+            mon.index,
+            mon.width,
+            mon.height,
+            if want_delta { "delta-tile" } else { "png-full" },
+            fps
+        );
+
+        if want_delta {
+            // --- Tile-delta path (channel 3): only changed tiles are sent. ---
+            let mut capture = make_capture_source(&display_clone, mon.width, mon.height);
+            let mut encoder = DeltaEncoder::new(video_pipeline::delta::DEFAULT_TILE);
+            let mut clock = SimpleFrameClock::new(fps);
+            let mut frames_sent = 0u64;
+            loop {
+                let res = tokio::task::spawn_blocking(move || {
+                    use video_pipeline::traits::FrameClock;
+                    clock.tick();
+                    let captured = capture.capture();
+                    let encoded = captured
+                        .and_then(|cf| encoder.encode(&cf));
+                    (encoded, capture, encoder, clock)
+                })
+                .await;
+
+                match res {
+                    Ok((Ok(frame), cap, enc, clk)) => {
+                        capture = cap;
+                        encoder = enc;
+                        clock = clk;
+                        let out_frame = build_frame(
+                            1,
+                            3,
+                            if frame.is_keyframe { 0x01 } else { 0x00 },
+                            &frame.data,
+                        );
+                        if tx_socket.write_all(&out_frame).await.is_err() {
+                            break;
+                        }
+                        frames_sent += 1;
+                        if frames_sent == 1 {
+                            info!(
+                                "Sent first delta frame from display {} ({} bytes)",
+                                display_clone,
+                                frame.data.len()
+                            );
+                        }
+                        TOTAL_BYTES_SENT.fetch_add(out_frame.len() as u64, Ordering::Relaxed);
+                    }
+                    Ok((Err(e), cap, enc, clk)) => {
+                        capture = cap;
+                        encoder = enc;
+                        clock = clk;
+                        warn!("Delta frame error: {:?}", e);
+                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                    }
+                    Err(_) => break,
+                }
+            }
+            return;
+        }
+
+        // --- Legacy full-PNG path (channel 1), preserved for old clients. ---
+        let capture = make_capture_source(&display_clone, mon.width, mon.height);
         let encoder = Box::new(SoftwareFallbackEncoder::new(2000));
-        let clock = Box::new(SimpleFrameClock::new(15));
+        let clock = Box::new(SimpleFrameClock::new(fps));
         let mut stream = LocalVideoStream::new(capture, encoder, clock);
         let mut frames_sent = 0u64;
 

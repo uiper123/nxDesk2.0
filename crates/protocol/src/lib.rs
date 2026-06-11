@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use thiserror::Error;
 
+pub mod capabilities;
 pub mod messages;
 
 pub const MAGIC_BYTES: &[u8; 4] = b"TTGT";

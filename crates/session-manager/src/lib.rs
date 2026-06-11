@@ -1,11 +1,13 @@
 pub mod allocator;
 pub mod backends;
+pub mod continuity;
 pub mod manager;
 pub mod traits;
 
 pub use allocator::LocalDisplayAllocator;
 pub use backends::astra_x11::AstraX11Backend;
 pub use backends::mock::MockSessionBackend;
+pub use continuity::{ResumeRegistry, ResumeState, DEFAULT_GRACE};
 pub use manager::LocalSessionManager;
 pub use traits::{
     DisplayAllocator, SessionAuditSink, SessionBackend, SessionLifecycle, SessionManager,

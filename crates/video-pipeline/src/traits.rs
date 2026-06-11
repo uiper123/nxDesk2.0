@@ -1,5 +1,27 @@
 use anyhow::Result;
 
+/// A physical monitor that can be captured.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Monitor {
+    pub index: u32,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub x: i32,
+    pub y: i32,
+    pub is_primary: bool,
+}
+
+/// A captured raw frame together with its true dimensions. Carrying the
+/// dimensions explicitly avoids the fragile "infer width/height from buffer
+/// length" heuristic the encoder used to rely on.
+#[derive(Clone, Debug)]
+pub struct CaptureFrame {
+    pub rgba: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Clone, Debug)]
 pub struct EncodedFrame {
     pub data: Vec<u8>,
@@ -17,6 +39,25 @@ pub struct VideoMetrics {
 
 pub trait CaptureSource: Send + Sync {
     fn capture_frame(&mut self) -> Result<Vec<u8>>;
+
+    /// Capture a frame along with its real dimensions. The default
+    /// implementation falls back to `capture_frame` plus the source's
+    /// configured dimensions, so existing sources keep working unchanged.
+    fn capture(&mut self) -> Result<CaptureFrame> {
+        let (w, h) = self.dimensions();
+        let rgba = self.capture_frame()?;
+        Ok(CaptureFrame {
+            rgba,
+            width: w,
+            height: h,
+        })
+    }
+
+    /// Configured capture dimensions (width, height). Sources that do not know
+    /// their dimensions ahead of time may return (0, 0).
+    fn dimensions(&self) -> (u32, u32) {
+        (0, 0)
+    }
 }
 
 pub trait VideoEncoder: Send + Sync {

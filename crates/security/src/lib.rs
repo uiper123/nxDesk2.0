@@ -1,6 +1,9 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
+pub mod access;
+pub use access::{AccessMode, AccessOutcome, AccessPolicy, HostContext};
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum UserRole {
     User,

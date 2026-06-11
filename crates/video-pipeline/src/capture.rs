@@ -43,6 +43,10 @@ impl CaptureSource for MockCaptureSource {
         }
         Ok(buffer)
     }
+
+    fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
 }
 
 // ----------------------------- Linux (X11) -----------------------------
@@ -147,6 +151,10 @@ impl CaptureSource for X11CaptureSource {
         // Fallback to mock capture source
         let mut mock = MockCaptureSource::new(self.width, self.height);
         mock.capture_frame()
+    }
+
+    fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
     }
 }
 
@@ -266,6 +274,10 @@ impl CaptureSource for WindowsCaptureSource {
                 mock.capture_frame()
             }
         }
+    }
+
+    fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
     }
 }
 

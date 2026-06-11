@@ -364,6 +364,8 @@ pub async fn launch_application(
 pub struct VncQueryParams {
     pub host: String,
     pub display: u32,
+    #[serde(default)]
+    pub monitor: u32,
 }
 
 pub async fn vnc_ws_handler(
@@ -376,8 +378,8 @@ pub async fn vnc_ws_handler(
 
 async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<AppState>) {
     info!(
-        "Upgraded connection to WebSocket for VNC. Host: {}, Display: {}",
-        params.host, params.display
+        "Upgraded connection to WebSocket for VNC. Host: {}, Display: {}, Monitor: {}",
+        params.host, params.display, params.monitor
     );
 
     // 1. Get host port (fallback to 2222)

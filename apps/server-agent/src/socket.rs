@@ -266,9 +266,34 @@ fn handle_command(
                 Err(_) => pretty(serde_json::json!({ "error": "Invalid display ID" })),
             }
         }
+        cmd if cmd.starts_with("monitors") => {
+            let parts: Vec<&str> = command.splitn(2, ' ').collect();
+            let display = if parts.len() == 2 && !parts[1].trim().is_empty() {
+                let d = parts[1].trim().trim_start_matches(':');
+                format!(":{}", d)
+            } else {
+                std::env::var("DISPLAY").unwrap_or_else(|_| ":10".to_string())
+            };
+            let mons = video_pipeline::monitors::enumerate(&display, 1920, 1080);
+            let list: Vec<serde_json::Value> = mons
+                .iter()
+                .map(|m| {
+                    serde_json::json!({
+                        "index": m.index,
+                        "name": m.name,
+                        "width": m.width,
+                        "height": m.height,
+                        "x": m.x,
+                        "y": m.y,
+                        "is_primary": m.is_primary,
+                    })
+                })
+                .collect();
+            pretty(serde_json::json!({ "display": display, "monitors": list, "count": list.len() }))
+        }
         _ => pretty(serde_json::json!({
             "error": "Unknown command",
-            "available_commands": ["status", "sessions", "metrics", "health", "users", "start_session <username>", "stop_session <id>", "applications", "launch <display_id> <command>", "ensure_vnc <display_id>"]
+            "available_commands": ["status", "sessions", "metrics", "health", "users", "start_session <username>", "stop_session <id>", "applications", "launch <display_id> <command>", "ensure_vnc <display_id>", "monitors [display_id]"]
         })),
     }
 }

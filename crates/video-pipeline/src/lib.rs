@@ -1,7 +1,9 @@
 pub mod bitrate;
 pub mod capture;
 pub mod clock;
+pub mod delta;
 pub mod encoder;
+pub mod monitors;
 pub mod stream;
 pub mod traits;
 
@@ -12,11 +14,13 @@ pub use capture::WindowsCaptureSource;
 pub use capture::X11CaptureSource;
 pub use capture::{make_capture_source, MockCaptureSource};
 pub use clock::SimpleFrameClock;
+pub use delta::{DeltaEncoder, DEFAULT_TILE};
 pub use encoder::{GStreamerEncoder, MockVideoEncoder, SoftwareFallbackEncoder};
+pub use monitors::enumerate as enumerate_monitors;
 pub use stream::LocalVideoStream;
 pub use traits::{
-    BitrateController, CaptureSource, EncodedFrame, FrameClock, VideoEncoder, VideoMetrics,
-    VideoStream,
+    BitrateController, CaptureFrame, CaptureSource, EncodedFrame, FrameClock, Monitor,
+    VideoEncoder, VideoMetrics, VideoStream,
 };
 
 #[cfg(test)]

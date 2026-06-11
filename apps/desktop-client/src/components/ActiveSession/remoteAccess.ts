@@ -43,15 +43,90 @@ export function getConnectionModeDetails(mode: ConnectionMode): ConnectionModeDe
   return MODE_DETAILS[mode];
 }
 
-export function buildRemoteDesktopUrls(apiBaseUrl: string, host: string, displayId: number) {
+export function buildRemoteDesktopUrls(
+  apiBaseUrl: string,
+  host: string,
+  displayId: number,
+  monitorIndex = 0,
+) {
   const base = apiBaseUrl.replace(/\/$/, "");
   const wsBase = base.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
   const query = new URLSearchParams({ host, display: String(displayId) });
+  if (monitorIndex > 0) {
+    query.set("monitor", String(monitorIndex));
+  }
 
   return {
     wsUrl: `${wsBase}/ws/vnc?${query.toString()}`,
     uploadUrl: `${base}/upload`,
   };
+}
+
+export interface RemoteMonitor {
+  index: number;
+  name: string;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  isPrimary: boolean;
+}
+
+/**
+ * Parse the agent's `monitors` control-command JSON reply into typed
+ * RemoteMonitor records. Tolerant of missing fields so a partial reply still
+ * yields a usable (sorted, primary-first) list.
+ */
+export function parseMonitorList(raw: unknown): RemoteMonitor[] {
+  const obj = raw as { monitors?: unknown } | null;
+  const list = Array.isArray(obj?.monitors) ? (obj!.monitors as unknown[]) : [];
+  const monitors: RemoteMonitor[] = list.map((m, i) => {
+    const r = (m ?? {}) as Record<string, unknown>;
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      index: num(r.index, i),
+      name: typeof r.name === "string" && r.name ? r.name : `Monitor ${i + 1}`,
+      width: num(r.width, 0),
+      height: num(r.height, 0),
+      x: num(r.x, 0),
+      y: num(r.y, 0),
+      isPrimary: r.is_primary === true || r.isPrimary === true,
+    };
+  });
+  monitors.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.index - b.index);
+  return monitors;
+}
+
+export function describeMonitor(monitor: RemoteMonitor): string {
+  const res = monitor.width > 0 && monitor.height > 0 ? ` · ${monitor.width}×${monitor.height}` : "";
+  const primary = monitor.isPrimary ? " (основной)" : "";
+  return `${monitor.name}${res}${primary}`;
+}
+
+export type AccessMode = "unattended" | "ask-user";
+
+export interface AccessModeDetails {
+  label: string;
+  description: string;
+  tone: "good" | "warn";
+}
+
+const ACCESS_MODE_DETAILS: Record<AccessMode, AccessModeDetails> = {
+  unattended: {
+    label: "Постоянный доступ",
+    description: "Подключение без подтверждения на стороне хоста (unattended).",
+    tone: "warn",
+  },
+  "ask-user": {
+    label: "Спросить пользователя",
+    description: "Локальный пользователь должен подтвердить входящее подключение.",
+    tone: "good",
+  },
+};
+
+export function getAccessModeDetails(mode: AccessMode): AccessModeDetails {
+  return ACCESS_MODE_DETAILS[mode];
 }
 
 export function buildUploadUrl(apiBaseUrl: string, filename: string): string {
