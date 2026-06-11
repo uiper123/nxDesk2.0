@@ -108,6 +108,59 @@ jobs:
           name: server-agent-linux
           path: release-artifacts/*
 
+  build-agent-windows:
+    name: Build Server Agent (Windows x86_64)
+    needs: check-and-tag
+    if: needs.check-and-tag.outputs.should_build == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-release-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Server Agent Release
+        run: cargo build --release -p server-agent
+
+      - name: Prepare Agent Artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
+          Copy-Item target/release/server-agent.exe release-artifacts/ttgtiso-desk-agent-windows-x86_64.exe
+          Copy-Item scripts/install-agent.ps1 release-artifacts/install-agent.ps1
+          Copy-Item scripts/uninstall-agent.ps1 release-artifacts/uninstall-agent.ps1
+          Copy-Item scripts/update-agent.ps1 release-artifacts/update-agent.ps1
+          Set-Location release-artifacts
+          $files = @(
+            "ttgtiso-desk-agent-windows-x86_64.exe",
+            "install-agent.ps1",
+            "uninstall-agent.ps1",
+            "update-agent.ps1"
+          )
+          Get-FileHash -Algorithm SHA256 $files |
+            ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), (Split-Path $_.Path -Leaf) } |
+            Set-Content SHA256SUMS-windows.txt
+
+      - name: Upload Agent Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-agent-windows
+          path: release-artifacts/*
+
   build-desktop-client:
     name: Build Desktop Client (${{ matrix.platform }})
     needs: check-and-tag
@@ -173,7 +226,7 @@ jobs:
 
   publish-agent:
     name: Attach Agent Artifacts to Release
-    needs: [check-and-tag, build-agent, build-desktop-client]
+    needs: [check-and-tag, build-agent, build-agent-windows, build-desktop-client]
     if: needs.check-and-tag.outputs.should_build == 'true'
     env:
       RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
@@ -185,6 +238,12 @@ jobs:
           name: server-agent-linux
           path: release-artifacts
 
+      - name: Download Windows Agent Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: server-agent-windows
+          path: release-artifacts-windows
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -194,3 +253,8 @@ jobs:
             release-artifacts/install-agent.sh
             release-artifacts/update-agent.sh
             release-artifacts/SHA256SUMS
+            release-artifacts-windows/ttgtiso-desk-agent-windows-x86_64.exe
+            release-artifacts-windows/install-agent.ps1
+            release-artifacts-windows/uninstall-agent.ps1
+            release-artifacts-windows/update-agent.ps1
+            release-artifacts-windows/SHA256SUMS-windows.txt
