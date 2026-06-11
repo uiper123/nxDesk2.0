@@ -95,7 +95,10 @@ pub fn list_applications() -> Value {
         ));
     }
     if let Ok(appdata) = std::env::var("APPDATA") {
-        dirs.push(format!("{}\\Microsoft\\Windows\\Start Menu\\Programs", appdata));
+        dirs.push(format!(
+            "{}\\Microsoft\\Windows\\Start Menu\\Programs",
+            appdata
+        ));
     }
 
     fn scan_dir(dir: &std::path::Path, apps: &mut Vec<Value>) {

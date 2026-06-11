@@ -6,11 +6,11 @@ pub mod stream;
 pub mod traits;
 
 pub use bitrate::AdaptiveBitrateController;
-pub use capture::{make_capture_source, MockCaptureSource};
-#[cfg(target_os = "linux")]
-pub use capture::X11CaptureSource;
 #[cfg(target_os = "windows")]
 pub use capture::WindowsCaptureSource;
+#[cfg(target_os = "linux")]
+pub use capture::X11CaptureSource;
+pub use capture::{make_capture_source, MockCaptureSource};
 pub use clock::SimpleFrameClock;
 pub use encoder::{GStreamerEncoder, MockVideoEncoder, SoftwareFallbackEncoder};
 pub use stream::LocalVideoStream;

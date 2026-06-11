@@ -55,7 +55,8 @@ pub async fn run_uds_listener(
     let listener = match UnixListener::bind(&path) {
         Ok(l) => {
             use std::os::unix::fs::PermissionsExt;
-            if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666)) {
+            if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666))
+            {
                 warn!("Failed to set 666 permissions on agent.sock: {}", e);
             }
             info!("Local control Unix socket bound to: {}", path);
@@ -147,7 +148,10 @@ pub async fn run_tcp_control_listener(
 }
 
 fn pretty(value: serde_json::Value) -> String {
-    format!("{}\n", serde_json::to_string_pretty(&value).unwrap_or_default())
+    format!(
+        "{}\n",
+        serde_json::to_string_pretty(&value).unwrap_or_default()
+    )
 }
 
 fn handle_command(

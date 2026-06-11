@@ -80,7 +80,10 @@ impl AgentApp {
                     s
                 }
                 Err(e) => {
-                    warn!("Failed to bind UDP socket for auto-discovery broadcast: {}", e);
+                    warn!(
+                        "Failed to bind UDP socket for auto-discovery broadcast: {}",
+                        e
+                    );
                     return;
                 }
             };

@@ -1,8 +1,8 @@
 use crate::traits::{DisplayAllocator, SessionBackend, SessionManager, UserSession};
 use anyhow::{bail, Result};
-use shared_types::{SessionInfo, SessionStatus};
 #[cfg(unix)]
 use shared_types::SessionKind;
+use shared_types::{SessionInfo, SessionStatus};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

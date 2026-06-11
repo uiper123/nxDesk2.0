@@ -14,8 +14,8 @@ use std::sync::mpsc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use windows_service::service::{
-    ServiceAccess, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceState,
-    ServiceStatus, ServiceType,
+    ServiceAccess, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceState, ServiceStatus,
+    ServiceType,
 };
 use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
 use windows_service::service_manager::{ServiceManager, ServiceManagerAccess};
@@ -60,7 +60,9 @@ pub fn install_service() -> Result<()> {
             manager
                 .open_service(
                     SERVICE_NAME,
-                    ServiceAccess::CHANGE_CONFIG | ServiceAccess::START | ServiceAccess::QUERY_STATUS,
+                    ServiceAccess::CHANGE_CONFIG
+                        | ServiceAccess::START
+                        | ServiceAccess::QUERY_STATUS,
                 )
                 .context("Failed to open existing service")?
         }

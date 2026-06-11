@@ -38,7 +38,11 @@ pub fn list_applications() -> Value {
 
 pub fn launch_application(_display_id: u32, exec_cmd: &str) -> Value {
     info!("Launching '{}' (generic platform)", exec_cmd);
-    match std::process::Command::new("sh").arg("-c").arg(exec_cmd).spawn() {
+    match std::process::Command::new("sh")
+        .arg("-c")
+        .arg(exec_cmd)
+        .spawn()
+    {
         Ok(_) => json!({ "success": true, "message": format!("Launched '{}'", exec_cmd) }),
         Err(e) => json!({ "error": format!("Failed to spawn command: {}", e) }),
     }

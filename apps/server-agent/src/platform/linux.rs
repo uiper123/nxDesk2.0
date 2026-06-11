@@ -614,7 +614,11 @@ pub fn ensure_vnc(display_id: u32) -> Value {
                     format!(
                         "Wayland VNC server (wayvnc) failed to start on display :{}{}.",
                         display_id,
-                        if detail.is_empty() { String::new() } else { format!(": {}", detail) }
+                        if detail.is_empty() {
+                            String::new()
+                        } else {
+                            format!(": {}", detail)
+                        }
                     )
                 } else {
                     format!(

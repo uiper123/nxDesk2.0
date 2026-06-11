@@ -17,7 +17,10 @@ pub fn get_data_dir() -> Result<PathBuf> {
 pub fn get_runtime_dir() -> Result<PathBuf> {
     let dirs = ProjectDirs::from("com", "ttgtiso", "desk")
         .context("Failed to get system directory paths")?;
-    Ok(dirs.runtime_dir().map(|p| p.to_path_buf()).unwrap_or_else(|| dirs.data_dir().to_path_buf()))
+    Ok(dirs
+        .runtime_dir()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| dirs.data_dir().to_path_buf()))
 }
 
 pub fn get_log_dir() -> Result<PathBuf> {

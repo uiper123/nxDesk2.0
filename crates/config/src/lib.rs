@@ -61,7 +61,10 @@ pub fn load_config() -> Result<AgentConfig> {
         if p.exists() {
             return load_config_from_file(p);
         }
-        tracing::warn!("TTGTISO_CONFIG set to {:?} but file does not exist", env_path);
+        tracing::warn!(
+            "TTGTISO_CONFIG set to {:?} but file does not exist",
+            env_path
+        );
     }
 
     // Windows default location under ProgramData.
