@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "appsdesktop-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.ttgtiso.desk",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -35,7 +35,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBRUZBRjlENkJDNjU0M0QKUldROVZNWnJuYS92dXBaTTVYQVBZd2xNQ25kRlJkaFBmZkVhRW9sdFd2Y3JpM0ttQXdYcVlvbEcK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE4OUNFMDAyRTlGMTlEN0QKUldSOW5mSHBBdUNjR0ZQekhxQUlyNXFlQ1c5Zm5iNFVVSFJhZFphV0ZKZFZvTTlYaHdtL2FuNzIK",
       "endpoints": [
         "https://github.com/uiper123/nxDesk2.0/releases/latest/download/latest.json"
       ]
