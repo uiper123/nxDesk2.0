@@ -24,3 +24,13 @@ file-transfer = { path = "../../crates/file-transfer" }
 transport = { path = "../../crates/transport" }
 protocol = { path = "../../crates/protocol" }
 shared-types = { path = "../../crates/shared-types" }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-service = "0.7"
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+    "Win32_Security",
+    "Win32_System_RemoteDesktop",
+] }

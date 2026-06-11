@@ -1,7 +1,10 @@
 use crate::traits::{EncodedFrame, VideoEncoder};
 use anyhow::Result;
-use gstreamer::prelude::*;
 use tracing::info;
+
+#[cfg(target_os = "linux")]
+use gstreamer::prelude::*;
+#[cfg(target_os = "linux")]
 use tracing::warn;
 
 pub struct MockVideoEncoder {
@@ -100,6 +103,10 @@ impl VideoEncoder for MockVideoEncoder {
     }
 }
 
+// ============================================================================
+// Linux: GStreamer-backed hardware/software H.264 encoders with mock fallback.
+// ============================================================================
+#[cfg(target_os = "linux")]
 pub struct GStreamerEncoder {
     pipeline: Option<gstreamer::Pipeline>,
     appsrc: Option<gstreamer::Element>,
@@ -110,6 +117,7 @@ pub struct GStreamerEncoder {
     use_fallback: bool,
 }
 
+#[cfg(target_os = "linux")]
 impl GStreamerEncoder {
     pub fn new(initial_bitrate: u32) -> Result<Self> {
         info!("Initializing GStreamer encoder backend...");
@@ -184,6 +192,7 @@ impl GStreamerEncoder {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl VideoEncoder for GStreamerEncoder {
     fn encode_frame(&mut self, raw_frame: &[u8]) -> Result<EncodedFrame> {
         if self.use_fallback {
@@ -285,6 +294,7 @@ impl VideoEncoder for GStreamerEncoder {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl Drop for GStreamerEncoder {
     fn drop(&mut self) {
         if let Some(pipeline) = &self.pipeline {
@@ -293,6 +303,7 @@ impl Drop for GStreamerEncoder {
     }
 }
 
+#[cfg(target_os = "linux")]
 pub struct SoftwareFallbackEncoder {
     pipeline: Option<gstreamer::Pipeline>,
     appsrc: Option<gstreamer::Element>,
@@ -302,6 +313,7 @@ pub struct SoftwareFallbackEncoder {
     use_fallback: bool,
 }
 
+#[cfg(target_os = "linux")]
 impl SoftwareFallbackEncoder {
     pub fn new(initial_bitrate: u32) -> Self {
         Self {
@@ -353,6 +365,7 @@ impl SoftwareFallbackEncoder {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl VideoEncoder for SoftwareFallbackEncoder {
     fn encode_frame(&mut self, raw_frame: &[u8]) -> Result<EncodedFrame> {
         if self.use_fallback {
@@ -451,10 +464,70 @@ impl VideoEncoder for SoftwareFallbackEncoder {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl Drop for SoftwareFallbackEncoder {
     fn drop(&mut self) {
         if let Some(pipeline) = &self.pipeline {
             let _ = pipeline.set_state(gstreamer::State::Null);
         }
+    }
+}
+
+// ============================================================================
+// Non-Linux (Windows, etc.): pure-Rust PNG software encoder. Produces the same
+// wire format (PNG frames) as the Linux mock/software path, so the desktop
+// client decodes Windows agent frames with no changes.
+// ============================================================================
+#[cfg(not(target_os = "linux"))]
+pub struct GStreamerEncoder {
+    inner: MockVideoEncoder,
+}
+
+#[cfg(not(target_os = "linux"))]
+impl GStreamerEncoder {
+    pub fn new(initial_bitrate: u32) -> Result<Self> {
+        Ok(Self {
+            inner: MockVideoEncoder::new("Software-PNG", initial_bitrate),
+        })
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+impl VideoEncoder for GStreamerEncoder {
+    fn encode_frame(&mut self, raw_frame: &[u8]) -> Result<EncodedFrame> {
+        self.inner.encode_frame(raw_frame)
+    }
+    fn adjust_bitrate(&mut self, bitrate_kbps: u32) -> Result<()> {
+        self.inner.adjust_bitrate(bitrate_kbps)
+    }
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub struct SoftwareFallbackEncoder {
+    inner: MockVideoEncoder,
+}
+
+#[cfg(not(target_os = "linux"))]
+impl SoftwareFallbackEncoder {
+    pub fn new(initial_bitrate: u32) -> Self {
+        Self {
+            inner: MockVideoEncoder::new("Software-PNG", initial_bitrate),
+        }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+impl VideoEncoder for SoftwareFallbackEncoder {
+    fn encode_frame(&mut self, raw_frame: &[u8]) -> Result<EncodedFrame> {
+        self.inner.encode_frame(raw_frame)
+    }
+    fn adjust_bitrate(&mut self, bitrate_kbps: u32) -> Result<()> {
+        self.inner.adjust_bitrate(bitrate_kbps)
+    }
+    fn name(&self) -> &str {
+        self.inner.name()
     }
 }

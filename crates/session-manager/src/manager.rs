@@ -1,6 +1,8 @@
 use crate::traits::{DisplayAllocator, SessionBackend, SessionManager, UserSession};
 use anyhow::{bail, Result};
-use shared_types::{SessionInfo, SessionKind, SessionStatus};
+use shared_types::{SessionInfo, SessionStatus};
+#[cfg(unix)]
+use shared_types::SessionKind;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -102,6 +104,7 @@ impl SessionManager for LocalSessionManager {
 
     fn list_active_sessions(&self) -> Result<Vec<SessionInfo>> {
         let sessions = self.sessions.lock().unwrap();
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut list: Vec<SessionInfo> = sessions
             .values()
             .map(|managed| SessionInfo {

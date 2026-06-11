@@ -37,3 +37,5 @@ x11rb = { version = "0.13", features = ["all-extensions"] }
 zbus = "4.0"
 russh = "0.40"
 toml = "0.8"
+windows = "0.58"
+windows-service = "0.7"

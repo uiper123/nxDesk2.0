@@ -10,7 +10,7 @@ use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 use video_pipeline::traits::VideoStream;
 use video_pipeline::{
-    LocalVideoStream, SimpleFrameClock, SoftwareFallbackEncoder, X11CaptureSource,
+    make_capture_source, LocalVideoStream, SimpleFrameClock, SoftwareFallbackEncoder,
 };
 
 /// Global connection statistics
@@ -221,7 +221,7 @@ async fn handle_client_connection(
     let display_clone = display_str.clone();
     let video_task = tokio::spawn(async move {
         // Start streaming 15 FPS
-        let capture = Box::new(X11CaptureSource::new(&display_clone, 1920, 1080));
+        let capture = make_capture_source(&display_clone, 1920, 1080);
         let encoder = Box::new(SoftwareFallbackEncoder::new(2000));
         let clock = Box::new(SimpleFrameClock::new(15));
         let mut stream = LocalVideoStream::new(capture, encoder, clock);

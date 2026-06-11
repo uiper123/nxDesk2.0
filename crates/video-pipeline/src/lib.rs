@@ -6,7 +6,11 @@ pub mod stream;
 pub mod traits;
 
 pub use bitrate::AdaptiveBitrateController;
-pub use capture::{MockCaptureSource, X11CaptureSource};
+pub use capture::{make_capture_source, MockCaptureSource};
+#[cfg(target_os = "linux")]
+pub use capture::X11CaptureSource;
+#[cfg(target_os = "windows")]
+pub use capture::WindowsCaptureSource;
 pub use clock::SimpleFrameClock;
 pub use encoder::{GStreamerEncoder, MockVideoEncoder, SoftwareFallbackEncoder};
 pub use stream::LocalVideoStream;
@@ -76,6 +80,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_encoder_fallback() {
         // Simulates dynamic fallback to software encoder when hardware fails
         let gstreamer_res = GStreamerEncoder::new(2000);
@@ -94,7 +99,8 @@ mod tests {
         };
 
         assert!(active_encoder.name().contains("H264"));
-        let frame = active_encoder.encode_frame(&vec![0u8; 500]).unwrap();
+        let raw = vec![0u8; 320 * 240 * 4];
+        let frame = active_encoder.encode_frame(&raw).unwrap();
         assert!(!frame.data.is_empty());
     }
 

@@ -54,6 +54,28 @@ impl Default for SecurityPolicy {
 /// Attempt to load configuration from known file paths in priority order.
 /// Falls back to defaults if no config file is found.
 pub fn load_config() -> Result<AgentConfig> {
+    // Highest priority: explicit path via environment variable (set by the
+    // service launcher / installer on any platform).
+    if let Ok(env_path) = std::env::var("TTGTISO_CONFIG") {
+        let p = Path::new(&env_path);
+        if p.exists() {
+            return load_config_from_file(p);
+        }
+        tracing::warn!("TTGTISO_CONFIG set to {:?} but file does not exist", env_path);
+    }
+
+    // Windows default location under ProgramData.
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(program_data) = std::env::var("ProgramData") {
+            let win_path = format!("{}\\TTGTiSO-Desk\\agent.toml", program_data);
+            let p = Path::new(&win_path);
+            if p.exists() {
+                return load_config_from_file(p);
+            }
+        }
+    }
+
     let search_paths = [
         "/etc/ttgtiso-desk/agent.toml",
         "/etc/ttgtiso-desk/agent.json",
