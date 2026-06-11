@@ -1,5 +1,4 @@
-use anyhow::{Context, Result};
-use std::path::Path;
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{info, warn, Level};
@@ -8,16 +7,26 @@ use tracing_subscriber::FmtSubscriber;
 use audit::AuditLog;
 use session_manager::LocalSessionManager;
 
+use crate::platform;
+
 pub struct AgentApp;
 
 impl AgentApp {
     pub async fn run() -> Result<()> {
-        // 1. Initialize logging
+        Self::run_with_shutdown(None).await
+    }
+
+    /// Run the agent. If `external_shutdown` is provided, the agent will also
+    /// shut down when a value is received on it (used by the Windows service
+    /// control handler). Otherwise it waits for OS termination signals.
+    pub async fn run_with_shutdown(
+        mut external_shutdown: Option<broadcast::Receiver<()>>,
+    ) -> Result<()> {
+        // 1. Initialize logging (ignore error if already set, e.g. service mode)
         let subscriber = FmtSubscriber::builder()
             .with_max_level(Level::INFO)
             .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .context("Failed to set tracing subscriber")?;
+        let _ = tracing::subscriber::set_global_default(subscriber);
 
         info!("Starting TTGTiSO-Desk Server Agent...");
 
@@ -36,8 +45,8 @@ impl AgentApp {
         );
 
         // 3. Initialize components
-        let audit_log_path = Path::new("/var/log/ttgtiso-desk/audit.log");
-        let audit_log = Arc::new(AuditLog::new(audit_log_path));
+        let audit_log_path = platform::default_audit_log_path();
+        let audit_log = Arc::new(AuditLog::new(&audit_log_path));
         let session_mgr = Arc::new(LocalSessionManager::new_default());
 
         audit_log.log_auth_success("system", "127.0.0.1");
@@ -46,10 +55,8 @@ impl AgentApp {
         // 4. Create shutdown cancellation token
         let (shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
 
-        // 5. Start Unix Domain Socket Health/Monitoring Listener
-        let uds_path = "/var/lib/ttgtiso-desk/agent.sock";
-        let uds_task = tokio::spawn(crate::socket::run_uds_listener(
-            uds_path.to_string(),
+        // 5. Start local control listener (UDS on Linux, localhost TCP elsewhere)
+        let control_task = tokio::spawn(crate::socket::run_control_listener(
             session_mgr.clone(),
             shutdown_tx.subscribe(),
         ));
@@ -64,10 +71,7 @@ impl AgentApp {
         ));
 
         // 6.5. Spawn UDP broadcast beacon for auto-discovery
-        let agent_name = std::fs::read_to_string("/etc/hostname")
-            .unwrap_or_else(|_| "localhost".to_string())
-            .trim()
-            .to_string();
+        let agent_name = platform::agent_hostname();
         tokio::spawn(async move {
             use tokio::net::UdpSocket;
             let socket = match UdpSocket::bind("0.0.0.0:0").await {
@@ -76,10 +80,7 @@ impl AgentApp {
                     s
                 }
                 Err(e) => {
-                    warn!(
-                        "Failed to bind UDP socket for auto-discovery broadcast: {}",
-                        e
-                    );
+                    warn!("Failed to bind UDP socket for auto-discovery broadcast: {}", e);
                     return;
                 }
             };
@@ -105,36 +106,19 @@ impl AgentApp {
             port
         );
 
-        #[cfg(target_os = "linux")]
-        {
-            use tokio::signal::unix::{signal, SignalKind};
-            let mut sigterm = signal(SignalKind::terminate())?;
-            let mut sigint = signal(SignalKind::interrupt())?;
-
-            tokio::select! {
-                _ = sigterm.recv() => { info!("Received SIGTERM signal"); }
-                _ = sigint.recv() => { info!("Received SIGINT signal"); }
-            }
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            tokio::signal::ctrl_c().await?;
-            info!("Received Ctrl+C / Stop signal");
-        }
+        wait_for_shutdown(external_shutdown.as_mut()).await?;
 
         // 8. Graceful shutdown sequence
         info!("Graceful shutdown initiated. Notifying background tasks...");
 
-        // Log final stats
         let stats = crate::handler::connection_stats();
         info!("Final connection statistics: {}", stats);
 
         let _ = shutdown_tx.send(());
 
-        // Wait for tasks with timeout
         tokio::select! {
             _ = async {
-                let _ = uds_task.await;
+                let _ = control_task.await;
                 let _ = conn_task.await;
             } => {
                 info!("Background tasks stopped successfully.");
@@ -149,6 +133,52 @@ impl AgentApp {
     }
 }
 
+/// Block until a shutdown condition is met: an OS termination signal, or a
+/// message on the optional external shutdown channel (Windows service stop).
+async fn wait_for_shutdown(external: Option<&mut broadcast::Receiver<()>>) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let mut sigterm = signal(SignalKind::terminate())?;
+        let mut sigint = signal(SignalKind::interrupt())?;
+
+        match external {
+            Some(rx) => {
+                tokio::select! {
+                    _ = sigterm.recv() => info!("Received SIGTERM signal"),
+                    _ = sigint.recv() => info!("Received SIGINT signal"),
+                    _ = rx.recv() => info!("Received external shutdown request"),
+                }
+            }
+            None => {
+                tokio::select! {
+                    _ = sigterm.recv() => info!("Received SIGTERM signal"),
+                    _ = sigint.recv() => info!("Received SIGINT signal"),
+                }
+            }
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        match external {
+            Some(rx) => {
+                tokio::select! {
+                    res = tokio::signal::ctrl_c() => {
+                        res?;
+                        info!("Received Ctrl+C / Stop signal");
+                    }
+                    _ = rx.recv() => info!("Received external shutdown request"),
+                }
+            }
+            None => {
+                tokio::signal::ctrl_c().await?;
+                info!("Received Ctrl+C / Stop signal");
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,16 +190,16 @@ mod tests {
         assert!(config.security_policy.allow_password_auth);
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn test_graceful_shutdown_mechanism() {
-        // Create UDS path in local target/debug/ or workspace dir
         let temp_dir = std::env::current_dir().unwrap().join("target");
+        std::fs::create_dir_all(&temp_dir).ok();
         let uds_path = temp_dir.join("test_agent_shutdown.sock");
 
         let (shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
         let session_mgr = Arc::new(LocalSessionManager::new_default());
 
-        // Spawn UDS listener
         let uds_path_str = uds_path.to_string_lossy().to_string();
         let uds_task = tokio::spawn(crate::socket::run_uds_listener(
             uds_path_str,
@@ -177,14 +207,11 @@ mod tests {
             shutdown_tx.subscribe(),
         ));
 
-        // Sleep briefly to ensure UDS listener is up
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // Send shutdown signal
         let send_res = shutdown_tx.send(());
         assert!(send_res.is_ok());
 
-        // Wait for task to stop
         let task_res = tokio::time::timeout(tokio::time::Duration::from_secs(2), uds_task).await;
 
         assert!(

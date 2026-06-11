@@ -6,6 +6,15 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 tracing = { workspace = true }
-x11rb = { workspace = true }
 serde = { workspace = true }
 shared-types = { path = "../shared-types" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }

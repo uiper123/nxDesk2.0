@@ -8,7 +8,7 @@ TTGTiSO-Desk — это кроссплатформенная система уд
 /ttgtiso-desk
 ├── apps/
 │   ├── desktop-client/        # Tauri v2 + React клиентское приложение
-│   ├── server-agent/          # Серверный systemd-агент (Rust)
+│   ├── server-agent/          # Кроссплатформенный серверный агент (Rust): systemd на Linux, служба на Windows
 │   ├── relay-server/          # Прокси/бастион сервер (Rust)
 │   └── admin-cli/             # консоль администратора (Rust)
 ├── crates/
@@ -93,3 +93,22 @@ ttgtiso-desk-update --check
 sudo ttgtiso-desk-update
 ```
 Скрипт `update-agent.sh` скачивает свежий бинарник из последнего релиза, проверяет SHA256, делает резервную копию текущего бинарника (`/usr/bin/ttgtiso-desk-agent.bak`) и автоматически откатывается, если сервис не стартует. Подробнее: `docs/update-strategy.md`.
+
+## Серверный агент на Windows
+
+Серверный агент кроссплатформенный и на Windows устанавливается как **служба с автозапуском** (работает в фоне, переживает перезагрузку и выход пользователя из системы). Захват экрана выполняется через Win32 GDI, ввод — через SendInput; GStreamer/X11 на Windows не требуются. Формат кадров (PNG) совпадает с Linux, поэтому desktop-клиент работает без изменений.
+
+Установка (PowerShell **от имени администратора**):
+```powershell
+# установка последнего релиза с GitHub и регистрация автозапускаемой службы
+powershell -ExecutionPolicy Bypass -File install-agent.ps1
+
+# установка из локально собранного бинарника
+powershell -ExecutionPolicy Bypass -File install-agent.ps1 -BinaryPath .\target\release\server-agent.exe
+
+# обновление и удаление
+powershell -ExecutionPolicy Bypass -File update-agent.ps1
+powershell -ExecutionPolicy Bypass -File install-agent.ps1 -Uninstall
+```
+
+Служба: `TTGTiSODeskAgent` (автозапуск, LocalSystem, авто-перезапуск при сбое). Бинарник — `C:\Program Files\TTGTiSO-Desk\`, конфиг и логи — `C:\ProgramData\TTGTiSO-Desk\`. Также доступны встроенные команды `--install-service`, `--uninstall-service`, `--run-service`. Подробнее: `docs/installation-windows.md`.
