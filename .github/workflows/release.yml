@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.2.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  build-agent:
+    name: Build Server Agent (Linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools libx11-dev libxtst-dev
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-release-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Server Agent Release
+        run: cargo build --release -p server-agent
+
+      - name: Prepare Agent Artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp target/release/server-agent release-artifacts/ttgtiso-desk-agent-linux-x86_64
+          cp scripts/install-agent.sh release-artifacts/install-agent.sh
+          cp scripts/update-agent.sh release-artifacts/update-agent.sh
+          cd release-artifacts
+          sha256sum ttgtiso-desk-agent-linux-x86_64 install-agent.sh update-agent.sh > SHA256SUMS
+
+      - name: Upload Agent Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-agent-linux
+          path: release-artifacts/*
+
+  build-desktop-client:
+    name: Build Desktop Client (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-22.04
+          - platform: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux System Dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libx11-dev libxtst-dev
+
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-tauri-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install NPM Dependencies
+        run: npm install
+        working-directory: apps/desktop-client
+
+      - name: Build and Publish Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop-client
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: "TTGTiSO-Desk ${{ env.RELEASE_TAG }}"
+          releaseBody: "See CHANGELOG for details."
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+  publish-agent:
+    name: Attach Agent Artifacts to Release
+    needs: [build-agent, build-desktop-client]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Agent Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: server-agent-linux
+          path: release-artifacts
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            release-artifacts/ttgtiso-desk-agent-linux-x86_64
+            release-artifacts/install-agent.sh
+            release-artifacts/update-agent.sh
+            release-artifacts/SHA256SUMS
