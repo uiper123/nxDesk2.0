@@ -1,6 +1,6 @@
 # Maintainer: TTGTiSO-Desk Team <actions@github.com>
 pkgname=ttgtiso-desk
-pkgver=0.1.10
+pkgver=0.1.11
 pkgrel=1
 pkgdesc="TTGTiSO-Desk Remote Desktop Client and Server Agent"
 arch=('x86_64')
@@ -10,6 +10,7 @@ depends=('webkit2gtk-4.1' 'gtk3' 'cairo' 'pango' 'glib2' 'openssl' 'gdk-pixbuf2'
 makedepends=('cargo' 'npm' 'nodejs' 'git')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/uiper123/nxDesk2.0/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
+options=(!lto)
 
 build() {
     cd "nxDesk2.0-$pkgver"
