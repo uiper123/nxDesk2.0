@@ -1,6 +1,6 @@
 # Maintainer: TTGTiSO-Desk Team <actions@github.com>
 pkgname=ttgtiso-desk
-pkgver=0.1.8
+pkgver=0.1.10
 pkgrel=1
 pkgdesc="TTGTiSO-Desk Remote Desktop Client and Server Agent"
 arch=('x86_64')
@@ -23,7 +23,7 @@ build() {
     echo "Building Desktop Client..."
     cd apps/desktop-client
     npm install
-    npx tauri build -b none
+    npx tauri build --no-bundle
 }
 
 package() {
