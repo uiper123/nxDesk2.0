@@ -80,8 +80,9 @@ fn enumerate_windows() -> Vec<Monitor> {
     use std::cell::RefCell;
     use windows::Win32::Foundation::{BOOL, LPARAM, RECT, TRUE};
     use windows::Win32::Graphics::Gdi::{
-        EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO, MONITORINFOF_PRIMARY,
+        EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO,
     };
+    use windows::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
     thread_local! {
         static COLLECTED: RefCell<Vec<Monitor>> = const { RefCell::new(Vec::new()) };

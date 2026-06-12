@@ -97,6 +97,8 @@ fi
 echo -e "${GREEN}Starting Desktop Client (Tauri Native Mode)...${NC}"
 cd apps/desktop-client
 # Используем tauri dev вместо обычного vite dev, так как нам нужен Rust бэкенд для TCP сокетов
+# Отключаем DMA-BUF рендерер во избежание падения WebKitWebProcess (EGL_BAD_PARAMETER) на Arch Linux/Nvidia/Wayland
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
 npm run tauri dev > /tmp/desktop-client.log 2>&1 &
 CLIENT_PID=$!
 cd ../..
