@@ -51,3 +51,18 @@ pub fn launch_application(_display_id: u32, exec_cmd: &str) -> Value {
 pub fn ensure_vnc(_display_id: u32) -> Value {
     json!({ "error": "VNC is not supported on this platform" })
 }
+
+/// Execute a system power action on generic platform.
+pub fn power_action(action: &str) -> Value {
+    info!("Executing power action: '{}' (generic platform)", action);
+    let cmd = match action {
+        "reboot" => vec!["reboot"],
+        "shutdown" => vec!["poweroff"],
+        _ => return json!({ "error": "Invalid or unsupported power action on this platform" }),
+    };
+
+    match std::process::Command::new(cmd[0]).args(&cmd[1..]).spawn() {
+        Ok(_) => json!({ "success": true, "message": format!("Triggered {}", action) }),
+        Err(e) => json!({ "error": format!("Failed to execute command: {}", e) }),
+    }
+}

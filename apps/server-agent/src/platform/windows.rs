@@ -172,3 +172,22 @@ pub fn ensure_vnc(_display_id: u32) -> Value {
         "native_streaming": true
     })
 }
+
+/// Execute a system power action on Windows.
+pub fn power_action(action: &str) -> Value {
+    info!("Executing Windows power action: '{}'", action);
+    let (program, args) = match action {
+        "reboot" => ("shutdown", vec!["/r", "/t", "0", "/f"]),
+        "shutdown" => ("shutdown", vec!["/s", "/t", "0", "/f"]),
+        "lock" => ("rundll32.exe", vec!["user32.dll,LockWorkStation"]),
+        _ => return json!({ "error": "Invalid power action" }),
+    };
+
+    match std::process::Command::new(program).args(args).spawn() {
+        Ok(_) => json!({
+            "success": true,
+            "message": format!("Triggered Windows {}", action)
+        }),
+        Err(e) => json!({ "error": format!("Failed to execute Windows command: {}", e) }),
+    }
+}

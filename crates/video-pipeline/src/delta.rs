@@ -248,7 +248,11 @@ mod tests {
         for _ in 0..(w * h) {
             rgba.extend_from_slice(&color);
         }
-        CaptureFrame { rgba, width: w, height: h }
+        CaptureFrame {
+            rgba,
+            width: w,
+            height: h,
+        }
     }
 
     #[test]

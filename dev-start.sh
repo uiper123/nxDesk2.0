@@ -71,7 +71,7 @@ API_PID=$!
 # Ждём запуска API
 echo -e "${YELLOW}Waiting for API server to start...${NC}"
 API_READY=false
-for i in {1..15}; do
+for i in {1..45}; do
     if ! kill -0 "$API_PID" 2>/dev/null; then
         echo -e "${RED}✗ API Server process exited. Check /tmp/api-server.log${NC}"
         tail -n 40 /tmp/api-server.log || true

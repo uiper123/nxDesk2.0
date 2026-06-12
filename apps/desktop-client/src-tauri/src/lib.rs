@@ -18,6 +18,7 @@ async fn connect_to_agent(
     port: u16,
     username: String,
     display_id: Option<u32>,
+    connection_token: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
     // Clean up previous connection if any
@@ -43,8 +44,10 @@ async fn connect_to_agent(
         "session_id": "s1",
         "username": username,
         "display_id": display_id,
+        "connection_token": connection_token,
     })
     .to_string();
+
     let handshake = Frame {
         header: protocol::FrameHeader {
             version: 1,

@@ -40,6 +40,7 @@ impl Default for SessionLimits {
 pub struct SecurityPolicy {
     pub allow_password_auth: bool,
     pub enable_audit_logs: bool,
+    pub connection_token: Option<String>,
 }
 
 impl Default for SecurityPolicy {
@@ -47,6 +48,7 @@ impl Default for SecurityPolicy {
         Self {
             allow_password_auth: true,
             enable_audit_logs: true,
+            connection_token: None,
         }
     }
 }
@@ -200,6 +202,7 @@ enable_audit_logs = true
             security_policy: SecurityPolicy {
                 allow_password_auth: false,
                 enable_audit_logs: true,
+                connection_token: None,
             },
         };
         let toml_str = toml::to_string_pretty(&config).unwrap();

@@ -525,6 +525,9 @@ impl HostDiscovery {
                 HostStatus::Offline
             };
 
+            let mut os = "Unknown / Offline".to_string();
+            let mut agent_res = None;
+
             if is_online {
                 match timeout(
                     Duration::from_secs(3),
@@ -538,6 +541,7 @@ impl HostDiscovery {
                         {
                             active_sessions = sessions as u32;
                         }
+                        agent_res = Some(agent_status);
                     }
                     Ok(Err(e)) => {
                         warn!("Agent on {} is unreachable via UDS: {}", config.ip, e);
@@ -546,17 +550,28 @@ impl HostDiscovery {
                         warn!("Timeout getting agent status from {}", config.ip);
                     }
                 }
-            }
 
-            let os = if is_online {
-                if Self::is_local_host(&config.ip) {
-                    Self::detect_local_os()
-                } else {
-                    "Astra Linux".to_string()
+                if let Some(ref status) = agent_res {
+                    if let Some(sys) = status.get("system") {
+                        if let Some(os_name) = sys.get("os").and_then(|o| o.as_str()) {
+                            os = if os_name == "windows" {
+                                "Windows".to_string()
+                            } else if os_name == "linux" {
+                                "Linux".to_string()
+                            } else {
+                                os_name.to_string()
+                            };
+                        }
+                    }
                 }
-            } else {
-                "Unknown / Offline".to_string()
-            };
+                if os == "Unknown / Offline" || os.is_empty() {
+                    if Self::is_local_host(&config.ip) {
+                        os = Self::detect_local_os();
+                    } else {
+                        os = "Linux".to_string();
+                    }
+                }
+            }
 
             hosts.push(Host {
                 id: id_counter.to_string(),
@@ -585,16 +600,7 @@ impl HostDiscovery {
                 HostStatus::Offline
             };
 
-            host.operating_system = if is_online {
-                if Self::is_local_host(&host.ip) {
-                    Self::detect_local_os()
-                } else {
-                    "Astra Linux".to_string()
-                }
-            } else {
-                "Unknown / Offline".to_string()
-            };
-
+            let mut os = "Unknown / Offline".to_string();
             if is_online {
                 if let Ok(agent_status) = self.get_agent_status(&host.ip, port).await {
                     if let Some(_sessions) =
@@ -602,10 +608,29 @@ impl HostDiscovery {
                     {
                         host.active_sessions = 0; // Let refresh_hosts query active_sessions directly
                     }
+                    if let Some(sys) = agent_status.get("system") {
+                        if let Some(os_name) = sys.get("os").and_then(|o| o.as_str()) {
+                            os = if os_name == "windows" {
+                                "Windows".to_string()
+                            } else if os_name == "linux" {
+                                "Linux".to_string()
+                            } else {
+                                os_name.to_string()
+                            };
+                        }
+                    }
+                }
+                if os == "Unknown / Offline" || os.is_empty() {
+                    if Self::is_local_host(&host.ip) {
+                        os = Self::detect_local_os();
+                    } else {
+                        os = "Linux".to_string();
+                    }
                 }
             } else {
                 host.active_sessions = 0;
             }
+            host.operating_system = os;
         }
     }
 
@@ -676,6 +701,94 @@ impl HostDiscovery {
             &format!(
                 "echo 'users' | socat - UNIX-CONNECT:{} || echo 'users' | nc -U {}",
                 sock_path, sock_path
+            ),
+        ]);
+
+        let output = self
+            .run_command_with_timeout(cmd, Duration::from_secs(4))
+            .await?;
+
+        if output.status.success() {
+            let json_str = String::from_utf8_lossy(&output.stdout);
+            let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
+            Ok(json_val)
+        } else {
+            anyhow::bail!(
+                "Command failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+        }
+    }
+
+    pub async fn get_metrics_for_host(
+        &self,
+        ip: &str,
+        port: u16,
+    ) -> Result<serde_json::Value, anyhow::Error> {
+        if Self::is_local_host(ip) {
+            let json_str = self.run_local_agent_command("metrics").await?;
+            let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
+            return Ok(json_val);
+        };
+
+        let sock_path = Self::LOCAL_AGENT_SOCKET;
+        let mut cmd = Command::new("ssh");
+        cmd.args([
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "BatchMode=yes",
+            "-p",
+            &port.to_string(),
+            ip,
+            &format!(
+                "echo 'metrics' | socat - UNIX-CONNECT:{} || echo 'metrics' | nc -U {}",
+                sock_path, sock_path
+            ),
+        ]);
+
+        let output = self
+            .run_command_with_timeout(cmd, Duration::from_secs(4))
+            .await?;
+
+        if output.status.success() {
+            let json_str = String::from_utf8_lossy(&output.stdout);
+            let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
+            Ok(json_val)
+        } else {
+            anyhow::bail!(
+                "Command failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+        }
+    }
+
+    pub async fn execute_power_action_on_host(
+        &self,
+        ip: &str,
+        port: u16,
+        action: &str,
+    ) -> Result<serde_json::Value, anyhow::Error> {
+        let cmd_payload = format!("power {}", action);
+        if Self::is_local_host(ip) {
+            let json_str = self.run_local_agent_command(&cmd_payload).await?;
+            let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
+            return Ok(json_val);
+        };
+
+        let sock_path = Self::LOCAL_AGENT_SOCKET;
+        let mut cmd = Command::new("ssh");
+        cmd.args([
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "BatchMode=yes",
+            "-p",
+            &port.to_string(),
+            ip,
+            &format!(
+                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+                cmd_payload, sock_path, cmd_payload, sock_path
             ),
         ]);
 

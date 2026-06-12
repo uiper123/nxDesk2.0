@@ -693,3 +693,115 @@
 .killWindowButton:hover {
     background: var(--color-danger-soft);
 }
+
+.metricsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.metricGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.metricGroup:last-child {
+    border-bottom: none;
+}
+
+.metricGroupTitle {
+    margin: 0 0 6px 0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+}
+
+.metricRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+}
+
+.metricRow span {
+    color: var(--color-text-secondary);
+}
+
+.metricRow strong {
+    color: var(--color-text-primary);
+}
+
+.progressBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.progressLabel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.progressBarBg {
+    height: 8px;
+    background: var(--color-bg-inset);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.progressDetails {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+}
+
+.powerButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.powerButton {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-bg-raised);
+    color: var(--color-text-primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--duration-base) ease, background var(--duration-base) ease;
+}
+
+.powerButton:hover {
+    border-color: var(--color-accent-border);
+    background: var(--color-bg-surface);
+}
+
+.powerReboot:hover {
+    border-color: var(--color-warning-border, #faad14);
+    background: rgba(250, 173, 20, 0.1);
+}
+
+.powerShutdown:hover {
+    border-color: var(--color-danger-border, #ff4d4f);
+    background: rgba(255, 77, 79, 0.1);
+}
+

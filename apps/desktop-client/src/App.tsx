@@ -21,11 +21,15 @@ function App() {
   const [currentHost, setCurrentHost] = useState("");
   const [currentPort, setCurrentPort] = useState(22);
   const [currentUser, setCurrentUser] = useState("");
+  const [currentUserRole, setCurrentUserRole] = useState("Operator");
+  const [currentUserToken, setCurrentUserToken] = useState("");
   const [currentDisplayId, setCurrentDisplayId] = useState<number | undefined>(undefined);
   const [currentView, setCurrentView] = useState<View>("dashboard");
 
-  const handleLoginSuccess = (_host: string, _port: number, username: string) => {
+  const handleLoginSuccess = (_host: string, _port: number, username: string, role: string, token: string) => {
     setCurrentUser(username);
+    setCurrentUserRole(role);
+    setCurrentUserToken(token);
     setIsAuthenticated(true);
   };
 
@@ -66,6 +70,7 @@ function App() {
         port={currentPort}
         username={currentUser}
         displayId={currentDisplayId}
+        token={currentUserToken}
         onDisconnect={handleDisconnect}
       />
     );
@@ -120,7 +125,7 @@ function App() {
             <span className="avatar"><IconUser size={15} /></span>
             <div className="user-info">
               <span className="username">{currentUser}</span>
-              <span className="role">Operator</span>
+              <span className="role">{currentUserRole}</span>
             </div>
           </div>
           <button className="logout-btn" onClick={() => setIsAuthenticated(false)}>

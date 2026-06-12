@@ -20,3 +20,4 @@ futures-util = "0.3"
 config = { path = "../../crates/config" }
 shared-types = { path = "../../crates/shared-types" }
 audit = { path = "../../crates/audit" }
+security = { path = "../../crates/security" }

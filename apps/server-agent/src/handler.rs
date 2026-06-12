@@ -31,11 +31,12 @@ pub fn connection_stats() -> serde_json::Value {
 }
 
 pub async fn run_connection_listener(
-    port: u16,
+    config: config::AgentConfig,
     session_mgr: Arc<LocalSessionManager>,
     audit_log: Arc<AuditLog>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
+    let port = config.port;
     let addr = format!("0.0.0.0:{}", port);
     let listener = match TcpListener::bind(&addr).await {
         Ok(l) => {
@@ -74,9 +75,10 @@ pub async fn run_connection_listener(
 
                         let session_mgr = session_mgr.clone();
                         let audit_log = audit_log.clone();
+                        let config_clone = Arc::new(config.clone());
 
                         tokio::spawn(async move {
-                            handle_client_connection(stream, peer_addr, session_mgr, audit_log).await;
+                            handle_client_connection(stream, peer_addr, session_mgr, audit_log, config_clone).await;
                             ACTIVE_CONNECTIONS.fetch_sub(1, Ordering::Relaxed);
                         });
                     }
@@ -98,6 +100,7 @@ async fn handle_client_connection(
     peer_addr: std::net::SocketAddr,
     session_mgr: Arc<LocalSessionManager>,
     audit_log: Arc<AuditLog>,
+    config: Arc<config::AgentConfig>,
 ) {
     let peer_ip = peer_addr.ip().to_string();
     let connection_start = std::time::Instant::now();
@@ -135,6 +138,7 @@ async fn handle_client_connection(
     let mut target_display_id = None;
     let mut target_monitor_index = None;
     let mut requested_codec = None;
+    let mut client_token = None;
 
     if payload_length > 0 && payload_length < 65536 {
         let mut payload = vec![0u8; payload_length];
@@ -160,7 +164,36 @@ async fn handle_client_connection(
                 if let Some(codec) = json_val.get("codec").and_then(|c| c.as_str()) {
                     requested_codec = Some(codec.to_string());
                 }
+                if let Some(token) = json_val.get("connection_token").and_then(|t| t.as_str()) {
+                    client_token = Some(token.to_string());
+                }
             }
+        }
+    }
+
+    // Verify connection token if configured
+    if let Some(ref expected_token) = config.security_policy.connection_token {
+        let mut authenticated = false;
+        if let Some(ref token) = client_token {
+            if token == expected_token {
+                authenticated = true;
+            }
+        }
+        if !authenticated {
+            warn!("Unauthorized connection attempt from {}", peer_addr);
+            audit_log.log_auth_failure(
+                &target_username
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string()),
+                &peer_ip,
+                "Invalid or missing connection_token",
+            );
+
+            // Reply with error frame (non-OK payload)
+            let err_payload = b"UNAUTHORIZED";
+            let err_frame = build_frame(protocol_version, channel_id, 0x01, err_payload);
+            let _ = socket.write_all(&err_frame).await;
+            return;
         }
     }
 
@@ -229,7 +262,9 @@ async fn handle_client_connection(
     // Spawn Video Streaming Task
     let display_clone = display_str.clone();
     let monitor_index = target_monitor_index.unwrap_or(0);
-    let want_delta = std::env::var("TTGTISO_DELTA").map(|v| v == "1").unwrap_or(false)
+    let want_delta = std::env::var("TTGTISO_DELTA")
+        .map(|v| v == "1")
+        .unwrap_or(false)
         || matches!(
             requested_codec.as_deref(),
             Some("video.delta") | Some("delta")
@@ -278,8 +313,7 @@ async fn handle_client_connection(
                     use video_pipeline::traits::FrameClock;
                     clock.tick();
                     let captured = capture.capture();
-                    let encoded = captured
-                        .and_then(|cf| encoder.encode(&cf));
+                    let encoded = captured.and_then(|cf| encoder.encode(&cf));
                     (encoded, capture, encoder, clock)
                 })
                 .await;

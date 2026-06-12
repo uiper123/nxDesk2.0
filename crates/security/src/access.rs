@@ -69,12 +69,7 @@ pub struct HostContext {
 
 impl AccessPolicy {
     /// Decide what to do with an access request.
-    pub fn evaluate(
-        &self,
-        operator: &str,
-        mode: AccessMode,
-        ctx: HostContext,
-    ) -> AccessOutcome {
+    pub fn evaluate(&self, operator: &str, mode: AccessMode, ctx: HostContext) -> AccessOutcome {
         match mode {
             AccessMode::Unattended => {
                 if !self.allow_unattended {

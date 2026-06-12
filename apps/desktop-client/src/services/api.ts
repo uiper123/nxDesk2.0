@@ -41,6 +41,7 @@ export interface LoginResponse {
   user?: {
     username: string;
     role: string;
+    token?: string;
   };
 }
 
@@ -210,6 +211,32 @@ class ApiService {
       body: JSON.stringify({ command }),
     });
   }
+
+  async getHostMetrics(hostIp: string): Promise<SystemMetrics> {
+    return this.request<SystemMetrics>(`/hosts/${hostIp}/metrics`);
+  }
+
+  async executePowerAction(hostIp: string, action: 'reboot' | 'shutdown' | 'lock'): Promise<{ success: boolean; message: string }> {
+    return this.request(`/hosts/${hostIp}/power`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
+  }
+}
+
+export interface SystemMetrics {
+  hostname: string;
+  os: string;
+  uptime_seconds: number;
+  cpu_count: number;
+  load_average_1m: number;
+  load_average_5m: number;
+  load_average_15m: number;
+  memory_total_mb: number;
+  memory_available_mb: number;
+  memory_used_mb: number;
+  memory_usage_percent: number;
 }
 
 export const apiService = new ApiService();
+

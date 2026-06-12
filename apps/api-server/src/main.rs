@@ -48,6 +48,11 @@ async fn main() -> Result<()> {
             get(handlers::get_applications),
         )
         .route("/api/hosts/{ip}/users", get(handlers::get_system_users))
+        .route("/api/hosts/{ip}/metrics", get(handlers::get_metrics))
+        .route(
+            "/api/hosts/{ip}/power",
+            post(handlers::execute_power_action),
+        )
         .route(
             "/api/sessions/{id}/launch",
             post(handlers::launch_application),
@@ -117,7 +122,7 @@ async fn main() -> Result<()> {
                                 let os = if ip == "127.0.0.1" || ip == "localhost" {
                                     crate::discovery::HostDiscovery::detect_local_os()
                                 } else {
-                                    "Astra Linux".to_string()
+                                    "Linux".to_string()
                                 };
 
                                 discovered.push(Host {

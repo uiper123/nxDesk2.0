@@ -7,3 +7,10 @@ edition = "2021"
 serde = { workspace = true }
 anyhow = { workspace = true }
 config = { path = "../config" }
+sha2 = { version = "0.10", features = ["std"] }
+toml = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true, features = ["Win32_Security", "Win32_Foundation", "Win32_System_Threading"] }
+
+

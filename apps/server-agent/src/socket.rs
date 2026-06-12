@@ -291,9 +291,18 @@ fn handle_command(
                 .collect();
             pretty(serde_json::json!({ "display": display, "monitors": list, "count": list.len() }))
         }
+        cmd if cmd.starts_with("power") => {
+            let parts: Vec<&str> = command.splitn(2, ' ').collect();
+            if parts.len() < 2 {
+                return pretty(serde_json::json!({
+                    "error": "Usage: power <reboot|shutdown|lock>"
+                }));
+            }
+            pretty(platform::power_action(parts[1].trim()))
+        }
         _ => pretty(serde_json::json!({
             "error": "Unknown command",
-            "available_commands": ["status", "sessions", "metrics", "health", "users", "start_session <username>", "stop_session <id>", "applications", "launch <display_id> <command>", "ensure_vnc <display_id>", "monitors [display_id]"]
+            "available_commands": ["status", "sessions", "metrics", "health", "users", "start_session <username>", "stop_session <id>", "applications", "launch <display_id> <command>", "ensure_vnc <display_id>", "monitors [display_id]", "power <reboot|shutdown|lock>"]
         })),
     }
 }

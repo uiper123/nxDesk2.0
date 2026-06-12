@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import styles from "./ActiveSession.module.css";
-import { apiService, AppInfo, API_BASE_URL } from "../../services/api";
+import { apiService, AppInfo, API_BASE_URL, SystemMetrics } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
 import { IconFolder, IconApps, IconZoom, IconCompass, IconInfo, IconLink, IconExpand, IconClose, IconRocket } from "../Icons";
@@ -22,10 +22,11 @@ interface ActiveSessionProps {
     port: number;
     username: string;
     displayId?: number;
+    token?: string;
     onDisconnect: () => void;
 }
 
-export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port, username, displayId, onDisconnect }) => {
+export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port, username, displayId, token = "", onDisconnect }) => {
     const { showToast } = useToast();
     const [fps, setFps] = useState(0);
     const [bitrate, setBitrate] = useState(0);
@@ -36,6 +37,8 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
     const [clipboardSynced, setClipboardSynced] = useState(false);
     const [showFileTransfer, setShowFileTransfer] = useState(false);
     const [showAppManager, setShowAppManager] = useState(false);
+    const [showSystemInfo, setShowSystemInfo] = useState(false);
+    const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
     const [uploadedFiles, setUploadedFiles] = useState<{name: string, status: string}[]>([]);
     const [apps, setApps] = useState<AppInfo[]>([]);
     const [loadingApps, setLoadingApps] = useState(false);
@@ -56,7 +59,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
     const scaleRef = useRef<number | "auto">("auto");
     const channelRef = useRef<InstrumentedChannel | null>(null);
 
-    const remoteUrls = useMemo(() => buildRemoteDesktopUrls(API_BASE_URL, host, displayId ?? 0), [host, displayId]);
+    const remoteUrls = useMemo(() => buildRemoteDesktopUrls(API_BASE_URL, host, displayId ?? 0, 0, token), [host, displayId, token]);
     const modeDetails = useMemo(() => getConnectionModeDetails(connectionMode), [connectionMode]);
     const connectionHealth = useMemo(
         () =>
@@ -116,6 +119,44 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                 });
         }
     }, [showAppManager, host, showToast]);
+
+    useEffect(() => {
+        if (connectionStatus !== "connected") {
+            setMetrics(null);
+            return;
+        }
+
+        const fetchMetrics = () => {
+            apiService.getHostMetrics(host)
+                .then(res => {
+                    setMetrics(res);
+                })
+                .catch(err => {
+                    logger.error("session", "Failed to fetch host metrics", err);
+                });
+        };
+
+        fetchMetrics();
+        const interval = setInterval(fetchMetrics, 3000);
+        return () => clearInterval(interval);
+    }, [connectionStatus, host]);
+
+    const handlePowerAction = async (action: 'reboot' | 'shutdown' | 'lock') => {
+        try {
+            const res = await apiService.executePowerAction(host, action);
+            if (res.success) {
+                showToast("success", "Команда выполнена", `Действие «${action}» успешно инициировано.`);
+                if (action === "reboot" || action === "shutdown") {
+                    onDisconnect();
+                }
+            } else {
+                showToast("error", "Не удалось выполнить команду", res.message || "Неизвестная ошибка");
+            }
+        } catch (e: any) {
+            logger.error("session", "Power action error", e);
+            showToast("error", "Ошибка выполнения команды", e.message || String(e));
+        }
+    };
 
     const handleLaunchApp = async (command: string) => {
         try {
@@ -331,6 +372,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                         onClick={() => {
                             setShowFileTransfer(prev => !prev);
                             setShowAppManager(false);
+                            setShowSystemInfo(false);
                         }}
                     >
                         <IconFolder size={14} /> File Transfer
@@ -340,9 +382,20 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                         onClick={() => {
                             setShowAppManager(prev => !prev);
                             setShowFileTransfer(false);
+                            setShowSystemInfo(false);
                         }}
                     >
                         <IconApps size={14} /> Менеджер приложений
+                    </button>
+                    <button
+                        className={`${styles.toolButton} ${showSystemInfo ? styles.toolButtonActive : ""}`}
+                        onClick={() => {
+                            setShowSystemInfo(prev => !prev);
+                            setShowFileTransfer(false);
+                            setShowAppManager(false);
+                        }}
+                    >
+                        <IconRocket size={14} /> Системный статус
                     </button>
                     <button
                         className={styles.toolButton}
@@ -594,6 +647,104 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                                         <div className={styles.noAppsText}>Приложения не найдены</div>
                                     )}
                                 </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {showSystemInfo && (
+                    <div className={styles.sidebar}>
+                        <div className={styles.sidebarHeader}>
+                            <h3>Статус системы</h3>
+                            <button className={styles.sidebarClose} onClick={() => setShowSystemInfo(false)} aria-label="Закрыть"><IconClose size={15} /></button>
+                        </div>
+                        <div className={styles.sidebarContent}>
+                            {metrics ? (
+                                <div className={styles.metricsContainer}>
+                                    <div className={styles.metricGroup}>
+                                        <h4 className={styles.metricGroupTitle}>Информация о хосте</h4>
+                                        <div className={styles.metricRow}>
+                                            <span>Имя хоста:</span>
+                                            <strong>{metrics.hostname}</strong>
+                                        </div>
+                                        <div className={styles.metricRow}>
+                                            <span>ОС:</span>
+                                            <strong style={{ textTransform: "capitalize" }}>{metrics.os}</strong>
+                                        </div>
+                                        <div className={styles.metricRow}>
+                                            <span>Uptime:</span>
+                                            <strong>{formatDuration(metrics.uptime_seconds)}</strong>
+                                        </div>
+                                        <div className={styles.metricRow}>
+                                            <span>Ядер CPU:</span>
+                                            <strong>{metrics.cpu_count}</strong>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.metricGroup}>
+                                        <h4 className={styles.metricGroupTitle}>Загрузка ресурсов</h4>
+                                        
+                                        <div className={styles.progressBlock}>
+                                            <div className={styles.progressLabel}>
+                                                <span>Память (RAM)</span>
+                                                <span>{metrics.memory_usage_percent}%</span>
+                                            </div>
+                                            <div className={styles.progressBarBg}>
+                                                <div 
+                                                    className={styles.progressBarFill} 
+                                                    style={{ 
+                                                        width: `${metrics.memory_usage_percent}%`,
+                                                        backgroundColor: metrics.memory_usage_percent > 85 ? "#ff4d4f" : metrics.memory_usage_percent > 65 ? "#faad14" : "#52c41a"
+                                                    }}
+                                                />
+                                            </div>
+                                            <small className={styles.progressDetails}>
+                                                Использовано: {metrics.memory_total_mb - metrics.memory_available_mb} МБ / Всего: {metrics.memory_total_mb} МБ
+                                            </small>
+                                        </div>
+
+                                        {metrics.os !== "windows" && (
+                                            <div className={styles.metricRow} style={{ marginTop: "12px" }}>
+                                                <span>LA (1м/5м/15м):</span>
+                                                <strong>{metrics.load_average_1m.toFixed(2)} / {metrics.load_average_5m.toFixed(2)} / {metrics.load_average_15m.toFixed(2)}</strong>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={styles.metricGroup}>
+                                        <h4 className={styles.metricGroupTitle}>Управление питанием</h4>
+                                        <div className={styles.powerButtons}>
+                                            <button 
+                                                className={styles.powerButton} 
+                                                onClick={() => handlePowerAction("lock")}
+                                            >
+                                                Блокировать экран
+                                            </button>
+                                            <button 
+                                                className={`${styles.powerButton} ${styles.powerReboot}`} 
+                                                onClick={() => {
+                                                    if (confirm("Вы уверены, что хотите ПЕРЕЗАГРУЗИТЬ удаленный компьютер?")) {
+                                                        handlePowerAction("reboot");
+                                                    }
+                                                }}
+                                            >
+                                                Перезагрузить хост
+                                            </button>
+                                            <button 
+                                                className={`${styles.powerButton} ${styles.powerShutdown}`} 
+                                                onClick={() => {
+                                                    if (confirm("Вы уверены, что хотите ВЫКЛЮЧИТЬ удаленный компьютер?")) {
+                                                        handlePowerAction("shutdown");
+                                                    }
+                                                }}
+                                            >
+                                                Выключить хост
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={styles.appLoading}>Получение системных метрик...</div>
                             )}
                         </div>
                     </div>

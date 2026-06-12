@@ -8,17 +8,18 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginResponse {
     pub success: bool,
     pub message: String,
     pub user: Option<UserInfo>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub username: String,
     pub role: String,
+    pub token: String,
 }
 
 #[derive(Debug, Serialize, Clone)]

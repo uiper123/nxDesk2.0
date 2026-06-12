@@ -64,7 +64,7 @@ impl AgentApp {
         // 6. Start TCP connection listener with real protocol handler
         let port = config.port;
         let conn_task = tokio::spawn(crate::handler::run_connection_listener(
-            port,
+            config.clone(),
             session_mgr.clone(),
             audit_log.clone(),
             shutdown_tx.subscribe(),

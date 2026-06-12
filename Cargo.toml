@@ -39,3 +39,5 @@ russh = "0.40"
 toml = "0.8"
 windows = "0.58"
 windows-service = "0.7"
+sha2 = "0.10"
+

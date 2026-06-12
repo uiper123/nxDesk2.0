@@ -8,6 +8,7 @@ pub struct AppState {
     pub logs: RwLock<Vec<LogEntry>>,
     pub settings: RwLock<Settings>,
     pub discovered_hosts: RwLock<Vec<Host>>,
+    pub active_tokens: RwLock<std::collections::HashSet<String>>,
     pub discovery: HostDiscovery,
 }
 
@@ -29,6 +30,7 @@ impl AppState {
                 audio: false,
             }),
             discovered_hosts: RwLock::new(vec![]),
+            active_tokens: RwLock::new(std::collections::HashSet::new()),
             discovery,
         }
     }

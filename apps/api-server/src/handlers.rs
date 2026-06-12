@@ -13,32 +13,62 @@ use tracing::info;
 use crate::models::*;
 use crate::state::AppState;
 
+fn generate_session_token() -> String {
+    #[cfg(unix)]
+    {
+        if let Ok(mut file) = std::fs::File::open("/dev/urandom") {
+            use std::io::Read;
+            let mut buf = [0u8; 16];
+            if file.read_exact(&mut buf).is_ok() {
+                return buf.iter().map(|b| format!("{:02x}", b)).collect();
+            }
+        }
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{:x}", nanos)
+}
+
 pub async fn health_check() -> &'static str {
     "OK"
 }
 
 pub async fn login(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, StatusCode> {
     info!("Admin login attempt for user: {}", payload.username);
 
-    // В реальной системе здесь будет проверка админа (например, по PAM или локальной БД)
-    if !payload.username.is_empty() {
-        Ok(Json(LoginResponse {
-            success: true,
-            message: "Authentication successful".to_string(),
-            user: Some(UserInfo {
-                username: payload.username,
-                role: "Operator".to_string(),
-            }),
-        }))
-    } else {
-        Ok(Json(LoginResponse {
+    let security_mgr = security::SecurityManager::new();
+    match security_mgr.authenticate(&payload.username, &payload.password) {
+        Ok(role) => {
+            let role_str = match role {
+                security::UserRole::Admin => "Administrator".to_string(),
+                security::UserRole::SupportOperator => "Operator".to_string(),
+                security::UserRole::Auditor => "Auditor".to_string(),
+                security::UserRole::User => "User".to_string(),
+            };
+
+            let token = generate_session_token();
+            state.active_tokens.write().await.insert(token.clone());
+
+            Ok(Json(LoginResponse {
+                success: true,
+                message: "Authentication successful".to_string(),
+                user: Some(UserInfo {
+                    username: payload.username,
+                    role: role_str,
+                    token,
+                }),
+            }))
+        }
+        Err(e) => Ok(Json(LoginResponse {
             success: false,
-            message: "Invalid credentials".to_string(),
+            message: format!("Authentication failed: {}", e),
             user: None,
-        }))
+        })),
     }
 }
 
@@ -76,6 +106,7 @@ pub async fn start_session(
                     user: Some(UserInfo {
                         username: payload.username,
                         role: "Operator".to_string(),
+                        token: "".to_string(),
                     }),
                 }))
             }
@@ -98,6 +129,7 @@ pub async fn start_session(
                         user: Some(UserInfo {
                             username: payload.username,
                             role: "Operator".to_string(),
+                            token: "".to_string(),
                         }),
                     }))
                 } else {
@@ -366,14 +398,23 @@ pub struct VncQueryParams {
     pub display: u32,
     #[serde(default)]
     pub monitor: u32,
+    pub token: String,
 }
 
 pub async fn vnc_ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<VncQueryParams>,
     State(state): State<Arc<AppState>>,
-) -> impl axum::response::IntoResponse {
-    ws.on_upgrade(move |socket| handle_vnc_socket(socket, params, state))
+) -> Result<impl axum::response::IntoResponse, StatusCode> {
+    let is_valid = {
+        let tokens = state.active_tokens.read().await;
+        tokens.contains(&params.token)
+    };
+    if !is_valid {
+        tracing::warn!("Unauthorized VNC connection: invalid token");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    Ok(ws.on_upgrade(move |socket| handle_vnc_socket(socket, params, state)))
 }
 
 async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<AppState>) {
@@ -554,6 +595,49 @@ pub async fn get_system_users(
         }
         Err(e) => {
             tracing::error!("Failed to get users for host {}: {}", ip, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct PowerRequest {
+    pub action: String,
+}
+
+pub async fn get_metrics(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(ip): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let port = state.discovery.get_port_for_host(&ip);
+    match state.discovery.get_metrics_for_host(&ip, port).await {
+        Ok(metrics) => Ok(Json(metrics)),
+        Err(e) => {
+            tracing::error!("Failed to get metrics for host {}: {}", ip, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn execute_power_action(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(ip): axum::extract::Path<String>,
+    Json(payload): Json<PowerRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let port = state.discovery.get_port_for_host(&ip);
+    match state
+        .discovery
+        .execute_power_action_on_host(&ip, port, &payload.action)
+        .await
+    {
+        Ok(res) => Ok(Json(res)),
+        Err(e) => {
+            tracing::error!(
+                "Failed to execute power action {} for host {}: {}",
+                payload.action,
+                ip,
+                e
+            );
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

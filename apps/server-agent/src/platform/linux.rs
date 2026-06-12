@@ -637,3 +637,38 @@ pub fn ensure_vnc(display_id: u32) -> Value {
         }
     }
 }
+
+/// Execute a system power action on Linux.
+pub fn power_action(action: &str) -> Value {
+    info!("Executing power action: '{}'", action);
+    let cmd = match action {
+        "reboot" => vec!["systemctl", "reboot"],
+        "shutdown" => vec!["systemctl", "poweroff"],
+        "lock" => vec!["loginctl", "lock-sessions"],
+        _ => return json!({ "error": "Invalid power action" }),
+    };
+
+    match std::process::Command::new(cmd[0]).args(&cmd[1..]).spawn() {
+        Ok(_) => json!({ "success": true, "message": format!("Triggered {}", action) }),
+        Err(e) => {
+            // Fallback for non-systemd or permission issues
+            let fallback_cmd = match action {
+                "reboot" => vec!["reboot"],
+                "shutdown" => vec!["poweroff"],
+                "lock" => vec!["xdg-screensaver", "lock"],
+                _ => return json!({ "error": "Invalid power action" }),
+            };
+            match std::process::Command::new(fallback_cmd[0])
+                .args(&fallback_cmd[1..])
+                .spawn()
+            {
+                Ok(_) => {
+                    json!({ "success": true, "message": format!("Triggered {} (fallback)", action) })
+                }
+                Err(e2) => {
+                    json!({ "error": format!("Failed to execute command: {}; fallback failed: {}", e, e2) })
+                }
+            }
+        }
+    }
+}

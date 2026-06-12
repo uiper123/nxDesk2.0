@@ -87,12 +87,7 @@ fn enumerate_windows() -> Vec<Monitor> {
         static COLLECTED: RefCell<Vec<Monitor>> = const { RefCell::new(Vec::new()) };
     }
 
-    unsafe extern "system" fn cb(
-        hmon: HMONITOR,
-        _hdc: HDC,
-        _rect: *mut RECT,
-        _lp: LPARAM,
-    ) -> BOOL {
+    unsafe extern "system" fn cb(hmon: HMONITOR, _hdc: HDC, _rect: *mut RECT, _lp: LPARAM) -> BOOL {
         let mut mi = MONITORINFO {
             cbSize: std::mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()

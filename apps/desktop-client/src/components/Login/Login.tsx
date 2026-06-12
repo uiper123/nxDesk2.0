@@ -4,7 +4,7 @@ import { apiService } from "../../services/api";
 import { logger } from "../../services/logger";
 
 interface LoginProps {
-    onLoginSuccess: (host: string, port: number, username: string) => void;
+    onLoginSuccess: (host: string, port: number, username: string, role: string, token: string) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
@@ -27,7 +27,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             });
 
             if (response.success) {
-                onLoginSuccess("", 0, username);
+                onLoginSuccess("", 0, username, response.user?.role || "Operator", response.user?.token || "");
             } else {
                 setError(response.message || "Authentication failed");
             }
@@ -78,7 +78,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
                 <div className={styles.footer}>
                     <span>Closed Network Offline Mode Active</span>
-                    <span className={styles.badge}>Astra 1.8 Voronezh</span>
+                    <span className={styles.badge}>Cross-Platform (Linux/Windows)</span>
                 </div>
             </form>
         </div>

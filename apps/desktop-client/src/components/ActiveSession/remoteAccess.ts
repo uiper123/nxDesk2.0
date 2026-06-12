@@ -48,10 +48,11 @@ export function buildRemoteDesktopUrls(
   host: string,
   displayId: number,
   monitorIndex = 0,
+  token = "",
 ) {
   const base = apiBaseUrl.replace(/\/$/, "");
   const wsBase = base.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
-  const query = new URLSearchParams({ host, display: String(displayId) });
+  const query = new URLSearchParams({ host, display: String(displayId), token });
   if (monitorIndex > 0) {
     query.set("monitor", String(monitorIndex));
   }
@@ -61,6 +62,7 @@ export function buildRemoteDesktopUrls(
     uploadUrl: `${base}/upload`,
   };
 }
+
 
 export interface RemoteMonitor {
   index: number;
