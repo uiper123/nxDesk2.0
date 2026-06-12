@@ -57,6 +57,12 @@ fn generate_salt() -> String {
     format!("{:x}", nanos)
 }
 
+impl Default for SecurityManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecurityManager {
     pub fn new() -> Self {
         let path = Path::new("users.toml");
