@@ -224,9 +224,44 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
 
+  build-desktop-arch:
+    name: Build Desktop Client (Arch Linux)
+    needs: check-and-tag
+    if: needs.check-and-tag.outputs.should_build == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Update system and install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm rustup nodejs npm webkit2gtk-4.1 gtk3 cairo pango glib2 openssl gdk-pixbuf2 libsoup3 git jq wget alsa-lib
+
+      - name: Setup User for makepkg
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder .
+
+      - name: Build Package
+        run: |
+          su builder -c "rustup default stable"
+          su builder -c "makepkg -s --noconfirm"
+
+      - name: Upload Arch Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-package
+          path: "*.pkg.tar.zst"
+
   publish-agent:
     name: Attach Agent Artifacts to Release
-    needs: [check-and-tag, build-agent, build-agent-windows, build-desktop-client]
+    needs: [check-and-tag, build-agent, build-agent-windows, build-desktop-client, build-desktop-arch]
     if: needs.check-and-tag.outputs.should_build == 'true'
     env:
       RELEASE_TAG: ${{ needs.check-and-tag.outputs.tag_name }}
@@ -244,6 +279,13 @@ jobs:
           name: server-agent-windows
           path: release-artifacts-windows
 
+      - name: Download Arch Package Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: arch-package
+          path: arch-package
+        continue-on-error: true
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -258,3 +300,4 @@ jobs:
             release-artifacts-windows/uninstall-agent.ps1
             release-artifacts-windows/update-agent.ps1
             release-artifacts-windows/SHA256SUMS-windows.txt
+            arch-package/*.pkg.tar.zst

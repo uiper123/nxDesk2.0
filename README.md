@@ -69,8 +69,25 @@ npm run dev
 git push origin main --tags        # пуш тега запускает workflow .github/workflows/release.yml
 ```
 Workflow собирает:
-- **Desktop-клиент** (Linux `.deb`/`.AppImage`/`.rpm`, Windows `.msi`/`.exe`) через `tauri-action` с подписанными артефактами обновлений и файлом `latest.json`;
+- **Desktop-клиент** (Linux `.deb`/`.AppImage`/`.rpm` и Arch Linux `.pkg.tar.zst`, Windows `.msi`/`.exe`) через `tauri-action` с подписанными артефактами обновлений и файлом `latest.json`;
 - **Серверный агент** (`ttgtiso-desk-agent-linux-x86_64` + `SHA256SUMS` + скрипты установки/обновления).
+
+### Установка на Arch Linux
+Для пользователей Arch Linux (и производных Manjaro, CachyOS, EndeavourOS) доступна установка полностью нативного пакета. В отличие от формата AppImage, нативный пакет корректно линкуется с системными библиотеками Mesa, что исключает ошибки вида `EGL_BAD_PARAMETER`.
+
+**Вариант 1: Сборка из `PKGBUILD` (рекомендуемый)**
+Склонируйте репозиторий и выполните сборку:
+```bash
+git clone https://github.com/uiper123/nxDesk2.0.git
+cd nxDesk2.0
+makepkg -si
+```
+
+**Вариант 2: Готовый пакет из релизов**
+На странице релизов GitHub к каждой версии теперь прикрепляется файл `*.pkg.tar.zst`. Вы можете скачать его и установить двойным кликом (или через pacman):
+```bash
+sudo pacman -U ttgtiso-desk-0.1.8-1-x86_64.pkg.tar.zst
+```
 
 ### Обновление desktop-клиента
 Клиент проверяет обновления через Tauri Updater (Settings → Application Updates → "Check for Updates"). Обновление скачивается с GitHub Releases, проверяется по встроенной криптографической подписи и устанавливается с перезапуском приложения.
