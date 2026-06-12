@@ -198,11 +198,17 @@ fn get_app_version() -> String {
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
-        // Prevent WebKitWebProcess crashes due to EGL/DMA-BUF issues on Linux systems (e.g. Arch Linux with Nvidia/Mesa)
+        // Prevent WebKitWebProcess crashes due to EGL/DMA-BUF/Compositing issues on Linux systems (e.g. Arch Linux with Nvidia/Mesa)
         if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             #[allow(unused_unsafe)]
             unsafe {
                 std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            }
+        }
+        if std::env::var("WEBKIT_DISABLE_COMPOSITING_MODE").is_err() {
+            #[allow(unused_unsafe)]
+            unsafe {
+                std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
             }
         }
     }
