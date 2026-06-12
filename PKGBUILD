@@ -1,6 +1,6 @@
 # Maintainer: TTGTiSO-Desk Team <actions@github.com>
 pkgname=ttgtiso-desk
-pkgver=0.1.11
+pkgver=0.1.12
 pkgrel=1
 pkgdesc="TTGTiSO-Desk Remote Desktop Client and Server Agent"
 arch=('x86_64')
@@ -37,7 +37,7 @@ package() {
     install -Dm755 target/release/api-server "$pkgdir/usr/bin/ttgtiso-desk-api"
     
     # Install desktop client binary
-    install -Dm755 apps/desktop-client/src-tauri/target/release/appsdesktop-client "$pkgdir/usr/bin/ttgtiso-desk"
+    install -Dm755 target/release/appsdesktop-client "$pkgdir/usr/bin/ttgtiso-desk"
     
     # Install systemd service for agent (optional but good practice)
     # install -Dm644 packaging/systemd/ttgtiso-desk-agent.service "$pkgdir/usr/lib/systemd/system/ttgtiso-desk-agent.service"
