@@ -43,7 +43,7 @@ describe("ActiveSession", () => {
       />,
     );
 
-    const btn = screen.getByRole("button", { name: /disconnect|завершить/i });
+    const btn = screen.getByRole("button", { name: /disconnect|завершить|отключиться/i });
     btn.click();
     expect(onDisconnect).toHaveBeenCalledTimes(1);
   });

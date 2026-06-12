@@ -110,10 +110,6 @@ async fn main() -> Result<()> {
                             let mut discovered = state_udp.discovered_hosts.write().await;
 
                             if let Some(existing) = discovered.iter_mut().find(|h| h.ip == ip) {
-                                let beacon_port = port as u16;
-                                if existing.port != beacon_port {
-                                    existing.port = beacon_port;
-                                }
                                 existing.status = HostStatus::Online;
                             } else {
                                 info!("Auto-discovered new host: {} ({}:{})", name, ip, port);
@@ -129,7 +125,7 @@ async fn main() -> Result<()> {
                                     id: next_id,
                                     name: name.to_string(),
                                     ip: ip.clone(),
-                                    port: port as u16,
+                                    port: 22, // Use standard SSH port 22 for remote host command execution
                                     status: HostStatus::Online,
                                     active_sessions: 0,
                                     operating_system: os,

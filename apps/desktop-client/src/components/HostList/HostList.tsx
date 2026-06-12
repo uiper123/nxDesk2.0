@@ -26,7 +26,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
     const [showAddHost, setShowAddHost] = useState(false);
     const [newHostName, setNewHostName] = useState("");
     const [newHostIp, setNewHostIp] = useState("");
-    const [newHostPort, setNewHostPort] = useState(2222);
+    const [newHostPort, setNewHostPort] = useState(22);
     const [addHostLoading, setAddHostLoading] = useState(false);
     const [addHostError, setAddHostError] = useState("");
 
@@ -159,7 +159,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                 setShowAddHost(false);
                 setNewHostName("");
                 setNewHostIp("");
-                setNewHostPort(2222);
+                setNewHostPort(22);
                 // force refresh
                 const data = await apiService.getHosts();
                 setHosts(data);
@@ -425,7 +425,7 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                                 />
                                 <input 
                                     type="number" 
-                                    placeholder="Порт агента (обычно 2222)" 
+                                    placeholder="SSH порт (обычно 22)" 
                                     value={newHostPort}
                                     onChange={(e) => setNewHostPort(Number(e.target.value))}
                                     disabled={addHostLoading}

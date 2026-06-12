@@ -1,6 +1,6 @@
 # Maintainer: TTGTiSO-Desk Team <actions@github.com>
 pkgname=ttgtiso-desk
-pkgver=0.1.12
+pkgver=0.1.13
 pkgrel=1
 pkgdesc="TTGTiSO-Desk Remote Desktop Client and Server Agent"
 arch=('x86_64')

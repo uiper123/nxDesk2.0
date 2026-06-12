@@ -14,12 +14,12 @@ import {
 describe("buildRemoteDesktopUrls", () => {
   it("converts http API base to ws URL with host and display params", () => {
     const { wsUrl } = buildRemoteDesktopUrls("http://127.0.0.1:3001/api", "10.0.0.5", 10);
-    expect(wsUrl).toBe("ws://127.0.0.1:3001/api/ws/vnc?host=10.0.0.5&display=10");
+    expect(wsUrl).toBe("ws://127.0.0.1:3001/api/ws/vnc?host=10.0.0.5&display=10&token=");
   });
 
   it("converts https API base to wss URL", () => {
     const { wsUrl } = buildRemoteDesktopUrls("https://relay.local/api/", "192.168.1.20", 0);
-    expect(wsUrl).toBe("wss://relay.local/api/ws/vnc?host=192.168.1.20&display=0");
+    expect(wsUrl).toBe("wss://relay.local/api/ws/vnc?host=192.168.1.20&display=0&token=");
   });
 
   it("URL-encodes unusual host values", () => {

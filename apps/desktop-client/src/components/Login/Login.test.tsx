@@ -31,7 +31,7 @@ describe("Login", () => {
     );
 
     await waitFor(() => {
-      expect(onLoginSuccess).toHaveBeenCalledWith("", 0, "admin");
+      expect(onLoginSuccess).toHaveBeenCalledWith("", 0, "admin", "admin", "");
     });
   });
 
