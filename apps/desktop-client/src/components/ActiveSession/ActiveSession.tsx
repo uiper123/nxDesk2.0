@@ -375,7 +375,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             setShowSystemInfo(false);
                         }}
                     >
-                        <IconFolder size={14} /> File Transfer
+                        <IconFolder size={14} /> Передача файлов
                     </button>
                     <button
                         className={styles.toolButton}
@@ -407,25 +407,25 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             });
                         }}
                     >
-                        <IconZoom size={14} /> Scale: {currentScale}
+                        <IconZoom size={14} /> Масштаб: {currentScale}
                     </button>
                     <button
                         className={styles.toolButton}
                         onClick={() => setConnectionMode(prev => prev === "performance" ? "balanced" : prev === "balanced" ? "clarity" : "performance")}
                     >
-                        <IconCompass size={14} /> Mode: {modeDetails.label}
+                        <IconCompass size={14} /> Режим: {modeDetails.label}
                     </button>
                     <button
                         className={`${styles.toolButton} ${showOverview ? styles.toolButtonActive : ""}`}
                         onClick={() => setShowOverview(prev => !prev)}
                     >
-                        <IconInfo size={14} /> Session info
+                        <IconInfo size={14} /> Инфо о сессии
                     </button>
                     <button
                         className={styles.toolButton}
                         onClick={handleCopyEndpoint}
                     >
-                        <IconLink size={14} /> Copy endpoint
+                        <IconLink size={14} /> Скопировать адрес
                     </button>
                     <button
                         className={styles.toolButton}
@@ -440,10 +440,10 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                             setIsFullscreen(!document.fullscreenElement);
                         }}
                     >
-                        <IconExpand size={14} /> {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        <IconExpand size={14} /> {isFullscreen ? "Оконный режим" : "Во весь экран"}
                     </button>
                     <button className={styles.disconnectButton} onClick={onDisconnect}>
-                        Disconnect
+                        Отключиться
                     </button>
                 </div>
             </div>
@@ -752,7 +752,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
             </div>
 
             <div className={styles.clipboardBar}>
-                <span className={styles.clipLabel}>Clipboard Status:</span>
+                <span className={styles.clipLabel}>Буфер обмена:</span>
                 <input 
                     type="text" 
                     value={clipboardText} 
@@ -760,7 +760,7 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({ host, port: _port,
                     className={styles.clipInput}
                 />
                 <button className={styles.syncButton} onClick={handleCopyClipboard}>
-                    {clipboardSynced ? "Clipboard synced" : "Sync to Local Clipboard"}
+                    {clipboardSynced ? "Синхронизировано" : "Скопировать на клиента"}
                 </button>
             </div>
         </div>
