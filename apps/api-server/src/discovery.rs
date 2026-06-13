@@ -186,20 +186,11 @@ impl HostDiscovery {
         }
 
         let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo 'status' | socat - UNIX-CONNECT:{} || echo 'status' | nc -U {}",
-                sock_path, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo 'status' | socat - UNIX-CONNECT:{} || echo 'status' | nc -U {}",
+            sock_path, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -228,20 +219,11 @@ impl HostDiscovery {
             self.run_local_agent_command("sessions").await?
         } else {
             let sock_path = Self::LOCAL_AGENT_SOCKET;
-            let mut c = Command::new("ssh");
-            c.args([
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "BatchMode=yes",
-                "-p",
-                &port.to_string(),
-                ip,
-                &format!(
-                    "echo 'sessions' | socat - UNIX-CONNECT:{} || echo 'sessions' | nc -U {}",
-                    sock_path, sock_path
-                ),
-            ]);
+            let mut c = self.create_ssh_command(ip, port);
+            c.arg(format!(
+                "echo 'sessions' | socat - UNIX-CONNECT:{} || echo 'sessions' | nc -U {}",
+                sock_path, sock_path
+            ));
             let output = self
                 .run_command_with_timeout(c, Duration::from_secs(4))
                 .await?;
@@ -320,20 +302,11 @@ impl HostDiscovery {
             anyhow::bail!("{}", err);
         };
 
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-                cmd_payload, sock_path, cmd_payload, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+            cmd_payload, sock_path, cmd_payload, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -374,6 +347,68 @@ impl HostDiscovery {
             })
             .map(|c| c.ssh_port)
             .unwrap_or(22)
+    }
+
+    fn get_ssh_key_args(&self, ip: &str) -> Vec<String> {
+        let mut key_path = None;
+        let (_, target_ip) = Self::parse_ssh_target(ip);
+        if let Ok(content) = std::fs::read_to_string("hosts.toml") {
+            if let Ok(config) = toml::from_str::<HostsConfig>(&content) {
+                for c in config.hosts {
+                    let (_, config_ip) = Self::parse_ssh_target(&c.ip);
+                    if config_ip == target_ip {
+                        key_path = c.ssh_private_key_path;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if key_path.is_none() {
+            #[cfg(target_os = "windows")]
+            let default_path = std::env::var("USERPROFILE").ok().map(|h| {
+                format!(
+                    "{}\\AppData\\Local\\TTGTiSO\\TTGTiSO-Desk\\ssh\\id_ed25519",
+                    h
+                )
+            });
+            #[cfg(not(target_os = "windows"))]
+            let default_path = std::env::var("HOME")
+                .ok()
+                .map(|h| format!("{}/.local/share/ttgtiso-desk/ssh/id_ed25519", h));
+
+            if let Some(path) = default_path {
+                if std::path::Path::new(&path).exists() {
+                    key_path = Some(path);
+                }
+            }
+        }
+
+        if let Some(path) = key_path {
+            vec!["-i".to_string(), path]
+        } else {
+            vec![]
+        }
+    }
+
+    fn create_ssh_command(&self, ip: &str, port: u16) -> Command {
+        let mut cmd = Command::new("ssh");
+        cmd.args([
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "BatchMode=yes",
+            "-p",
+            &port.to_string(),
+        ]);
+
+        let key_args = self.get_ssh_key_args(ip);
+        if !key_args.is_empty() {
+            cmd.args(key_args);
+        }
+
+        cmd.arg(ip);
+        cmd
     }
 
     /// Запуск сессии на указанном хосте
@@ -430,20 +465,11 @@ impl HostDiscovery {
             anyhow::bail!("{}", err);
         };
 
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-                cmd_payload, sock_path, cmd_payload, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+            cmd_payload, sock_path, cmd_payload, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -506,17 +532,8 @@ impl HostDiscovery {
             c.arg("-c").arg(format!("tail -n {} {}", lines, log_path));
             c
         } else {
-            let mut c = Command::new("ssh");
-            c.args([
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "BatchMode=yes",
-                "-p",
-                &port.to_string(),
-                ip,
-                &format!("tail -n {} {}", lines, log_path),
-            ]);
+            let mut c = self.create_ssh_command(ip, port);
+            c.arg(format!("tail -n {} {}", lines, log_path));
             c
         };
 
@@ -646,7 +663,11 @@ impl HostDiscovery {
     /// Периодическое обновление статуса хостов
     pub async fn refresh_host_status(&self, hosts: &mut [Host]) {
         for host in hosts.iter_mut() {
-            let port = self.get_port_for_host(&host.ip);
+            let port = if host.port != 0 {
+                host.port
+            } else {
+                self.get_port_for_host(&host.ip)
+            };
             let is_online = self.check_host_availability(&host.ip, port).await;
 
             host.status = if is_online {
@@ -703,20 +724,11 @@ impl HostDiscovery {
         };
 
         let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo 'applications' | socat - UNIX-CONNECT:{} || echo 'applications' | nc -U {}",
-                sock_path, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo 'applications' | socat - UNIX-CONNECT:{} || echo 'applications' | nc -U {}",
+            sock_path, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -747,20 +759,11 @@ impl HostDiscovery {
         };
 
         let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo 'users' | socat - UNIX-CONNECT:{} || echo 'users' | nc -U {}",
-                sock_path, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo 'users' | socat - UNIX-CONNECT:{} || echo 'users' | nc -U {}",
+            sock_path, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -791,20 +794,11 @@ impl HostDiscovery {
         };
 
         let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo 'metrics' | socat - UNIX-CONNECT:{} || echo 'metrics' | nc -U {}",
-                sock_path, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo 'metrics' | socat - UNIX-CONNECT:{} || echo 'metrics' | nc -U {}",
+            sock_path, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -837,20 +831,11 @@ impl HostDiscovery {
         };
 
         let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-                cmd_payload, sock_path, cmd_payload, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+            cmd_payload, sock_path, cmd_payload, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -885,20 +870,11 @@ impl HostDiscovery {
             return Ok(json_val);
         };
 
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-                cmd_payload, sock_path, cmd_payload, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+            cmd_payload, sock_path, cmd_payload, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
@@ -932,20 +908,11 @@ impl HostDiscovery {
             return Ok(json_val);
         };
 
-        let mut cmd = Command::new("ssh");
-        cmd.args([
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "BatchMode=yes",
-            "-p",
-            &port.to_string(),
-            ip,
-            &format!(
-                "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-                cmd_payload, sock_path, cmd_payload, sock_path
-            ),
-        ]);
+        let mut cmd = self.create_ssh_command(ip, port);
+        cmd.arg(format!(
+            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
+            cmd_payload, sock_path, cmd_payload, sock_path
+        ));
 
         let output = self
             .run_command_with_timeout(cmd, Duration::from_secs(4))
