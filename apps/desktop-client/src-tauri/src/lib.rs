@@ -1,4 +1,3 @@
-use api_server;
 use base64::prelude::*;
 use directories::ProjectDirs;
 use protocol::messages::{InputEvent, KeyboardEvent, MouseEvent};
