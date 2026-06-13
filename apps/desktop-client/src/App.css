@@ -232,3 +232,16 @@ button {
     font-size: 0.7rem;
   }
 }
+
+/* Global Select and Option Styling to ensure Dark Theme consistency */
+select {
+  background-color: var(--color-bg-inset) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+select option {
+  background-color: var(--color-bg-surface) !important;
+  color: var(--color-text-primary) !important;
+}
+

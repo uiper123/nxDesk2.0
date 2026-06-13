@@ -126,7 +126,9 @@ name = "appsdesktop-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "api-server",
  "base64 0.22.1",
+ "directories",
  "protocol",
  "serde",
  "serde_json",
