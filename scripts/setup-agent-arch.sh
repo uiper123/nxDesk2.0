@@ -62,6 +62,8 @@ mkdir -p "$CONF_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$LOG_DIR"
 
+chown -R root:root "$DATA_DIR" "$LOG_DIR" "$CONF_DIR"
+
 # Write custom agent configuration
 cat <<EOF > "$CONF_DIR/agent.toml"
 bind_address = "0.0.0.0"

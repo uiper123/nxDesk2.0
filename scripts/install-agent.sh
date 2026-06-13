@@ -75,6 +75,8 @@ mkdir -p "$CONF_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$LOG_DIR"
 
+chown -R root:root "$DATA_DIR" "$LOG_DIR" "$CONF_DIR"
+
 chmod 755 "$DATA_DIR"
 chmod 700 "$LOG_DIR"
 chmod 750 "$CONF_DIR"
