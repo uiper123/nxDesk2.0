@@ -31,6 +31,9 @@ pub struct Host {
     pub status: HostStatus,
     pub active_sessions: u32,
     pub operating_system: String,
+    pub ssh_public_key: Option<String>,
+    pub ssh_public_key_path: Option<String>,
+    pub ssh_private_key_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

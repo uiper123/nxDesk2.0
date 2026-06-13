@@ -1,14 +1,128 @@
+use api_server;
 use base64::prelude::*;
+use directories::ProjectDirs;
 use protocol::messages::{InputEvent, KeyboardEvent, MouseEvent};
 use protocol::Frame;
 use shared_types::ConnectionConfig;
 use shared_types::MouseButton;
+use std::net::{SocketAddr, TcpStream};
+use std::path::PathBuf;
+use std::process::Command as StdCommand;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::{mpsc, Mutex};
 use transport::TcpTransport;
 
 struct AppState {
     tx_frames: Mutex<Option<mpsc::Sender<Frame>>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct SshIdentityInfo {
+    public_key: String,
+    public_key_path: String,
+    private_key_path: String,
+}
+
+fn project_data_dir() -> Result<PathBuf, String> {
+    let dirs = ProjectDirs::from("com", "TTGTiSO", "TTGTiSO-Desk")
+        .ok_or_else(|| "Unable to determine application data directory".to_string())?;
+    Ok(dirs.data_local_dir().to_path_buf())
+}
+
+fn ssh_identity_paths() -> Result<(PathBuf, PathBuf), String> {
+    let base_dir = project_data_dir()?.join("ssh");
+    Ok((base_dir.join("id_ed25519"), base_dir.join("id_ed25519.pub")))
+}
+
+fn load_ssh_identity() -> Result<SshIdentityInfo, String> {
+    let (private_key_path, public_key_path) = ssh_identity_paths()?;
+    let public_key = std::fs::read_to_string(&public_key_path).map_err(|e| {
+        format!(
+            "Failed to read public SSH key from {}: {}",
+            public_key_path.display(),
+            e
+        )
+    })?;
+
+    Ok(SshIdentityInfo {
+        public_key: public_key.trim().to_string(),
+        public_key_path: public_key_path.to_string_lossy().to_string(),
+        private_key_path: private_key_path.to_string_lossy().to_string(),
+    })
+}
+
+fn generate_ssh_identity() -> Result<SshIdentityInfo, String> {
+    let (private_key_path, public_key_path) = ssh_identity_paths()?;
+    if let Some(parent) = private_key_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "Failed to create SSH key directory {}: {}",
+                parent.display(),
+                e
+            )
+        })?;
+    }
+
+    if private_key_path.exists() {
+        let _ = std::fs::remove_file(&private_key_path);
+    }
+    if public_key_path.exists() {
+        let _ = std::fs::remove_file(&public_key_path);
+    }
+
+    let status = StdCommand::new("ssh-keygen")
+        .args([
+            "-t",
+            "ed25519",
+            "-N",
+            "",
+            "-f",
+            private_key_path.to_string_lossy().as_ref(),
+            "-C",
+            "TTGTiSO-Desk client",
+            "-q",
+        ])
+        .status()
+        .map_err(|e| format!("Failed to run ssh-keygen: {}", e))?;
+
+    if !status.success() {
+        return Err("ssh-keygen failed while creating SSH identity".to_string());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&private_key_path, std::fs::Permissions::from_mode(0o600));
+    }
+
+    load_ssh_identity()
+}
+
+fn ensure_ssh_identity_on_disk() -> Result<SshIdentityInfo, String> {
+    let (private_key_path, public_key_path) = ssh_identity_paths()?;
+    if private_key_path.exists() && public_key_path.exists() {
+        return load_ssh_identity();
+    }
+    generate_ssh_identity()
+}
+
+fn api_server_port_open() -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+    TcpStream::connect_timeout(&addr, Duration::from_millis(250)).is_ok()
+}
+
+fn ensure_api_server_running() {
+    let _ = ensure_ssh_identity_on_disk();
+    if api_server_port_open() {
+        return;
+    }
+
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = api_server::run().await {
+            eprintln!("api-server stopped: {e}");
+        }
+    });
 }
 
 #[tauri::command]
@@ -21,7 +135,6 @@ async fn connect_to_agent(
     connection_token: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    // Clean up previous connection if any
     {
         let mut tx_lock = state.tx_frames.lock().await;
         *tx_lock = None;
@@ -39,7 +152,6 @@ async fn connect_to_agent(
         return Err(format!("Failed to connect: {}", e));
     }
 
-    // Send handshake
     let handshake_payload = serde_json::json!({
         "session_id": "s1",
         "username": username,
@@ -70,20 +182,17 @@ async fn connect_to_agent(
     }
 
     let (tx, mut rx) = mpsc::channel::<Frame>(100);
-
     {
         let mut tx_lock = state.tx_frames.lock().await;
         *tx_lock = Some(tx);
     }
 
-    // Spawn relay loop
     tokio::spawn(async move {
         loop {
             tokio::select! {
                 frame_res = transport.receive_frame() => {
                     match frame_res {
                         Ok(frame) => {
-                            // If video frame, emit to frontend
                             if frame.header.channel_id == 1 {
                                 let b64 = BASE64_STANDARD.encode(&frame.payload);
                                 let _ = app.emit("video_frame", b64);
@@ -117,7 +226,7 @@ async fn connect_to_agent(
 #[tauri::command]
 async fn disconnect_agent(state: State<'_, AppState>) -> Result<(), String> {
     let mut tx_lock = state.tx_frames.lock().await;
-    *tx_lock = None; // Drops the sender, breaking the loop
+    *tx_lock = None;
     Ok(())
 }
 
@@ -194,11 +303,20 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+#[tauri::command]
+fn ensure_ssh_identity() -> Result<SshIdentityInfo, String> {
+    ensure_ssh_identity_on_disk()
+}
+
+#[tauri::command]
+fn regenerate_ssh_identity() -> Result<SshIdentityInfo, String> {
+    generate_ssh_identity()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
-        // Prevent WebKitWebProcess crashes due to EGL/DMA-BUF/Compositing issues on Linux systems (e.g. Arch Linux with Nvidia/Mesa)
         if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             #[allow(unused_unsafe)]
             unsafe {
@@ -220,12 +338,18 @@ pub fn run() {
         .manage(AppState {
             tx_frames: Mutex::new(None),
         })
+        .setup(|_| {
+            ensure_api_server_running();
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             connect_to_agent,
             disconnect_agent,
             send_mouse_event,
             send_keyboard_event,
-            get_app_version
+            get_app_version,
+            ensure_ssh_identity,
+            regenerate_ssh_identity
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

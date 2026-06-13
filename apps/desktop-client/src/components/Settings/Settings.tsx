@@ -19,6 +19,10 @@ export const Settings: React.FC = () => {
     const [updateStatus, setUpdateStatus] = useState<string>("Checking for updates...");
     const [currentVersion, setCurrentVersion] = useState<string>("0.1.0");
     const [updateBusy, setUpdateBusy] = useState(false);
+    const [sshPublicKey, setSshPublicKey] = useState("");
+    const [sshPublicKeyPath, setSshPublicKeyPath] = useState("");
+    const [sshPrivateKeyPath, setSshPrivateKeyPath] = useState("");
+    const [sshKeyBusy, setSshKeyBusy] = useState(false);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -47,7 +51,19 @@ export const Settings: React.FC = () => {
             }
         };
 
+        const loadSshIdentity = async () => {
+            try {
+                const identity = await apiService.ensureSshIdentity();
+                setSshPublicKey(identity.public_key);
+                setSshPublicKeyPath(identity.public_key_path);
+                setSshPrivateKeyPath(identity.private_key_path);
+            } catch (err) {
+                logger.error("settings", "Error ensuring SSH identity", err);
+            }
+        };
+
         loadVersion();
+        loadSshIdentity();
     }, []);
 
     const handleCheckUpdates = async () => {
@@ -79,6 +95,32 @@ export const Settings: React.FC = () => {
             logger.error("settings", "Update check failed", err);
         } finally {
             setUpdateBusy(false);
+        }
+    };
+
+    const handleRegenerateSshKey = async () => {
+        setSshKeyBusy(true);
+        try {
+            const identity = await apiService.regenerateSshIdentity();
+            setSshPublicKey(identity.public_key);
+            setSshPublicKeyPath(identity.public_key_path);
+            setSshPrivateKeyPath(identity.private_key_path);
+            showToast("success", "SSH key regenerated", "Скопируйте public key и добавьте его на нужный хост.");
+        } catch (err) {
+            showToast("error", "Failed to regenerate SSH key", err instanceof Error ? err.message : undefined);
+            logger.error("settings", "Error regenerating SSH key", err);
+        } finally {
+            setSshKeyBusy(false);
+        }
+    };
+
+    const copySshPublicKey = async () => {
+        if (!sshPublicKey) return;
+        try {
+            await navigator.clipboard.writeText(sshPublicKey);
+            showToast("success", "SSH public key copied");
+        } catch (err) {
+            showToast("error", "Failed to copy SSH key", err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -159,6 +201,34 @@ export const Settings: React.FC = () => {
                         <option value="vaapi">GStreamer + VAAPI H.264</option>
                         <option value="software">Software Fallback (OpenH264)</option>
                     </select>
+                </div>
+            </div>
+
+            <div className={styles.section}>
+                <h3 className={styles.sectionTitle}>SSH Access Key</h3>
+                <div className={styles.settingRow}>
+                    <div className={styles.settingInfo}>
+                        <label>Public Key</label>
+                        <span>{sshPublicKeyPath || "Generating..."}</span>
+                    </div>
+                    <button type="button" className={styles.saveButton} onClick={copySshPublicKey} disabled={!sshPublicKey}>
+                        Copy
+                    </button>
+                </div>
+                <div className={styles.settingRow}>
+                    <div className={styles.settingInfo}>
+                        <label>Current Key</label>
+                        <span className={styles.keyBox}>{sshPublicKey || "Generating SSH key on this client..."}</span>
+                    </div>
+                </div>
+                <div className={styles.settingRow}>
+                    <div className={styles.settingInfo}>
+                        <label>Private Key Path</label>
+                        <span>{sshPrivateKeyPath || "—"}</span>
+                    </div>
+                    <button type="button" className={styles.saveButton} onClick={handleRegenerateSshKey} disabled={sshKeyBusy}>
+                        {sshKeyBusy ? "Regenerating..." : "Regenerate"}
+                    </button>
                 </div>
             </div>
 

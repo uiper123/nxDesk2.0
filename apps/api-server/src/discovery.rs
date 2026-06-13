@@ -12,6 +12,9 @@ pub struct HostConfig {
     pub name: String,
     pub ip: String,
     pub ssh_port: u16,
+    pub ssh_public_key: Option<String>,
+    pub ssh_public_key_path: Option<String>,
+    pub ssh_private_key_path: Option<String>,
 }
 
 /// Сканер для обнаружения доступных хостов в сети
@@ -40,6 +43,9 @@ impl HostDiscovery {
             name: "localhost-test".to_string(),
             ip: "127.0.0.1".to_string(),
             ssh_port: 22,
+            ssh_public_key: None,
+            ssh_public_key_path: None,
+            ssh_private_key_path: None,
         }]
     }
 
@@ -90,9 +96,7 @@ impl HostDiscovery {
         let mut response = String::new();
         timeout(Duration::from_secs(4), stream.read_to_string(&mut response))
             .await
-            .map_err(|_| {
-                anyhow::anyhow!("Timed out reading from {}", Self::LOCAL_AGENT_SOCKET)
-            })??;
+            .map_err(|_| anyhow::anyhow!("Timed out reading from {}", Self::LOCAL_AGENT_SOCKET))??;
 
         Ok(response)
     }
@@ -581,6 +585,9 @@ impl HostDiscovery {
                 status,
                 active_sessions,
                 operating_system: os,
+                ssh_public_key: config.ssh_public_key.clone(),
+                ssh_public_key_path: config.ssh_public_key_path.clone(),
+                ssh_private_key_path: config.ssh_private_key_path.clone(),
             });
         }
 

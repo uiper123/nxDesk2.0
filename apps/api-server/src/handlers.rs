@@ -161,6 +161,19 @@ pub struct AddHostRequest {
     pub name: String,
     pub ip: String,
     pub port: u16,
+    pub ssh_public_key: Option<String>,
+    pub ssh_public_key_path: Option<String>,
+    pub ssh_private_key_path: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateHostRequest {
+    pub name: String,
+    pub ip: String,
+    pub port: u16,
+    pub ssh_public_key: Option<String>,
+    pub ssh_public_key_path: Option<String>,
+    pub ssh_private_key_path: Option<String>,
 }
 
 pub async fn get_discovered_hosts(
@@ -170,13 +183,48 @@ pub async fn get_discovered_hosts(
     Ok(Json(hosts.clone()))
 }
 
+fn build_host_from_request(id: String, payload: &AddHostRequest) -> Host {
+    Host {
+        id,
+        name: payload.name.clone(),
+        ip: payload.ip.clone(),
+        port: payload.port,
+        status: crate::models::HostStatus::Offline,
+        active_sessions: 0,
+        operating_system: "Unknown".to_string(),
+        ssh_public_key: payload.ssh_public_key.clone(),
+        ssh_public_key_path: payload.ssh_public_key_path.clone(),
+        ssh_private_key_path: payload.ssh_private_key_path.clone(),
+    }
+}
+
+fn rewrite_hosts_toml(hosts: &[Host]) {
+    let mut text = String::from("# Конфигурация хостов TTGTiSO-Desk\n# Список серверов, на которых развёрнут server-agent\n\n");
+    for host in hosts {
+        text.push_str("[[hosts]]\n");
+        text.push_str(&format!("name = \"{}\"\n", host.name));
+        text.push_str(&format!("ip = \"{}\"\n", host.ip));
+        text.push_str(&format!("ssh_port = {}\n", host.port));
+        if let Some(key) = &host.ssh_public_key {
+            text.push_str(&format!("ssh_public_key = \"{}\"\n", key.replace('"', "\\\"")));
+        }
+        if let Some(path) = &host.ssh_public_key_path {
+            text.push_str(&format!("ssh_public_key_path = \"{}\"\n", path.replace('"', "\\\"")));
+        }
+        if let Some(path) = &host.ssh_private_key_path {
+            text.push_str(&format!("ssh_private_key_path = \"{}\"\n", path.replace('"', "\\\"")));
+        }
+        text.push('\n');
+    }
+    let _ = std::fs::write("hosts.toml", text);
+}
+
 pub async fn add_host(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<AddHostRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let mut hosts = state.hosts.write().await;
 
-    // Check for duplicates
     if hosts.iter().any(|h| h.ip == payload.ip) {
         return Ok(Json(serde_json::json!({
             "success": false,
@@ -185,34 +233,37 @@ pub async fn add_host(
     }
 
     let next_id = (hosts.len() + 1).to_string();
-    hosts.push(Host {
-        id: next_id,
-        name: payload.name.clone(),
-        ip: payload.ip.clone(),
-        port: payload.port,
-        status: crate::models::HostStatus::Offline,
-        active_sessions: 0,
-        operating_system: "Unknown".to_string(),
-    });
-
-    // Try to save to hosts.toml
-    let toml_str = "[[hosts]]\n".to_string()
-        + &hosts
-            .iter()
-            .map(|h| {
-                format!(
-                    "name = \"{}\"\nip = \"{}\"\nssh_port = {}\n",
-                    h.name, h.ip, h.port
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n[[hosts]]\n");
-
-    let _ = std::fs::write("hosts.toml", toml_str);
+    hosts.push(build_host_from_request(next_id, &payload));
+    rewrite_hosts_toml(&hosts);
 
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Host added"
+    })))
+}
+
+pub async fn update_host(
+    State(state): State<Arc<AppState>>,
+    Path(ip): Path<String>,
+    Json(payload): Json<UpdateHostRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let mut hosts = state.hosts.write().await;
+    let Some(host) = hosts.iter_mut().find(|host| host.ip == ip) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+
+    host.name = payload.name;
+    host.ip = payload.ip;
+    host.port = payload.port;
+    host.ssh_public_key = payload.ssh_public_key;
+    host.ssh_public_key_path = payload.ssh_public_key_path;
+    host.ssh_private_key_path = payload.ssh_private_key_path;
+
+    rewrite_hosts_toml(&hosts);
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Host updated"
     })))
 }
 
@@ -229,7 +280,6 @@ pub async fn terminate_session(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     info!("Terminating session: {}", session_id);
 
-    // Find the session to know its host_ip
     let host_ip = {
         let sessions = state.sessions.read().await;
         sessions
@@ -239,7 +289,6 @@ pub async fn terminate_session(
     };
 
     if let Some(ip) = host_ip {
-        // Send command to the host to terminate
         let mut port = 22;
         {
             let hosts = state.hosts.read().await;
@@ -247,16 +296,11 @@ pub async fn terminate_session(
                 port = h.port;
             }
         }
-        if let Err(e) = state
-            .discovery
-            .stop_session_on_host(&ip, port, &session_id)
-            .await
-        {
+        if let Err(e) = state.discovery.stop_session_on_host(&ip, port, &session_id).await {
             tracing::error!("Failed to stop session {} on {}: {}", session_id, ip, e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
 
-        // Remove from local state
         let mut sessions = state.sessions.write().await;
         sessions.retain(|s| s.id != session_id);
 
@@ -423,7 +467,6 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         params.host, params.display, params.monitor
     );
 
-    // 1. Get host port (fallback to 2222)
     let mut port = 2222;
     {
         let hosts = state.hosts.read().await;
@@ -432,7 +475,6 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         }
     }
 
-    // 2. Contact agent to ensure VNC is running for the display
     let vnc_port = match state
         .discovery
         .ensure_vnc_on_host(&params.host, port, params.display)
@@ -477,7 +519,6 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         }
     };
 
-    // 3. Connect to target TCP VNC port
     let target_addr = format!("{}:{}", params.host, vnc_port);
     info!(
         "Connecting WebSocket proxy to VNC TCP target: {}",
@@ -501,7 +542,6 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         }
     };
 
-    // 4. Proxy bytes
     let (mut ws_sender, mut ws_receiver) = ws.split();
     let (mut tcp_reader, mut tcp_writer) = tcp_stream.into_split();
 

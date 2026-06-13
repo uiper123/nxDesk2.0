@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:3001/api';
 
@@ -53,6 +55,9 @@ export interface Host {
   status: 'online' | 'offline' | 'busy';
   active_sessions: number;
   operating_system: string;
+  ssh_public_key?: string;
+  ssh_public_key_path?: string;
+  ssh_private_key_path?: string;
 }
 
 export interface ActiveSession {
@@ -86,6 +91,12 @@ export interface AppInfo {
 export interface AppsResponse {
   applications: AppInfo[];
   count: number;
+}
+
+export interface SshIdentityInfo {
+  public_key: string;
+  public_key_path: string;
+  private_key_path: string;
 }
 
 class ApiService {
@@ -143,8 +154,32 @@ class ApiService {
     });
   }
 
-  async addHost(host: { name: string; ip: string; port: number }): Promise<{ success: boolean; message: string }> {
+  async addHost(host: {
+    name: string;
+    ip: string;
+    port: number;
+    ssh_public_key?: string;
+    ssh_public_key_path?: string;
+    ssh_private_key_path?: string;
+  }): Promise<{ success: boolean; message: string }> {
     return this.request('/hosts', {
+      method: 'POST',
+      body: JSON.stringify(host),
+    });
+  }
+
+  async updateHost(
+    hostIp: string,
+    host: {
+      name: string;
+      ip: string;
+      port: number;
+      ssh_public_key?: string;
+      ssh_public_key_path?: string;
+      ssh_private_key_path?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.request(`/hosts/${encodeURIComponent(hostIp)}`, {
       method: 'POST',
       body: JSON.stringify(host),
     });
@@ -222,6 +257,14 @@ class ApiService {
       body: JSON.stringify({ action }),
     });
   }
+
+  async ensureSshIdentity(): Promise<SshIdentityInfo> {
+    return invoke<SshIdentityInfo>('ensure_ssh_identity');
+  }
+
+  async regenerateSshIdentity(): Promise<SshIdentityInfo> {
+    return invoke<SshIdentityInfo>('regenerate_ssh_identity');
+  }
 }
 
 export interface SystemMetrics {
@@ -239,4 +282,3 @@ export interface SystemMetrics {
 }
 
 export const apiService = new ApiService();
-
