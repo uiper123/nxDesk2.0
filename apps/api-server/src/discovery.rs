@@ -61,8 +61,25 @@ impl HostDiscovery {
         "Astra Linux".to_string()
     }
 
-    fn is_local_host(ip: &str) -> bool {
-        ip == "127.0.0.1" || ip == "localhost"
+    pub fn is_local_host(ip: &str) -> bool {
+        if ip == "127.0.0.1" || ip == "localhost" || ip == "::1" {
+            return true;
+        }
+
+        if let Ok(ip_addr) = ip.parse::<std::net::IpAddr>() {
+            if ip_addr.is_loopback() {
+                return true;
+            }
+            // Попытка привязать UDP-сокет к этому IP-адресу.
+            // Если IP-адрес принадлежит локальному интерфейсу, привязка (bind) завершится успешно.
+            // Если IP-адрес внешний/удаленный, вернется ошибка AddrNotAvailable.
+            match std::net::UdpSocket::bind((ip_addr, 0)) {
+                Ok(_) => true,
+                Err(e) => e.kind() != std::io::ErrorKind::AddrNotAvailable,
+            }
+        } else {
+            false
+        }
     }
 
     async fn check_local_agent_health(&self) -> bool {
@@ -454,7 +471,7 @@ impl HostDiscovery {
         lines: usize,
     ) -> Result<Vec<crate::models::LogEntry>, anyhow::Error> {
         let log_path = "/var/log/ttgtiso-desk/audit.log";
-        let cmd = if ip == "127.0.0.1" || ip == "localhost" {
+        let cmd = if Self::is_local_host(ip) {
             let mut c = Command::new("sh");
             c.arg("-c").arg(format!("tail -n {} {}", lines, log_path));
             c

@@ -112,7 +112,7 @@ pub async fn run() -> Result<()> {
                                 info!("Auto-discovered new host: {} ({}:{})", name, ip, port);
                                 let next_id = (discovered.len() + 1).to_string();
 
-                                let os = if ip == "127.0.0.1" || ip == "localhost" {
+                                let os = if crate::discovery::HostDiscovery::is_local_host(&ip) {
                                     crate::discovery::HostDiscovery::detect_local_os()
                                 } else {
                                     "Linux".to_string()
