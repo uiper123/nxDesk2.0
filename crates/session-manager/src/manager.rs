@@ -1,4 +1,6 @@
-use crate::traits::{DisplayAllocator, SessionBackend, SessionManager, UserSession};
+use crate::traits::{
+    DisplayAllocator, SessionBackend, SessionManager, SessionProvisioning, UserSession,
+};
 use anyhow::{bail, Result};
 #[cfg(unix)]
 use shared_types::SessionKind;
@@ -31,7 +33,6 @@ impl SessionManager for LocalSessionManager {
     fn start_session(&self, username: &str) -> Result<SessionInfo> {
         let mut sessions = self.sessions.lock().unwrap();
 
-        // Prevent duplicate active sessions for the same user
         for managed in sessions.values() {
             if managed.session.username() == username
                 && managed.session.status() == SessionStatus::Active
@@ -40,14 +41,22 @@ impl SessionManager for LocalSessionManager {
             }
         }
 
-        // Allocate a display
-        let display_id = self.allocator.allocate()?;
+        let provisioning = self.backend.provisioning(username);
+        let display_id = match provisioning {
+            SessionProvisioning::AttachExisting => {
+                find_existing_display(username).ok_or_else(|| {
+                    anyhow::anyhow!("No active desktop session found for {}", username)
+                })?
+            }
+            SessionProvisioning::VirtualDesktop => self.allocator.allocate()?,
+        };
 
-        // Create session
-        let session = match self.backend.create_session(username, display_id) {
+        let session = match self.backend.create_session(username, Some(display_id)) {
             Ok(s) => s,
             Err(e) => {
-                self.allocator.release(display_id);
+                if matches!(provisioning, SessionProvisioning::VirtualDesktop) {
+                    self.allocator.release(display_id);
+                }
                 return Err(e);
             }
         };
@@ -170,7 +179,6 @@ impl SessionManager for LocalSessionManager {
                 }
             }
 
-            // Also scan for Wayland sessions in /run/user/
             if let Ok(entries) = fs::read_dir("/run/user") {
                 for entry in entries.flatten() {
                     let path = entry.path();
@@ -187,7 +195,6 @@ impl SessionManager for LocalSessionManager {
                                                 let username = resolve_username(uid)
                                                     .unwrap_or_else(|| format!("user_{}", uid));
 
-                                                // If we already have a root DM session on this display, remove it in favor of the real user session
                                                 if let Some(pos) = list.iter().position(|s| {
                                                     s.display_id == disp_num
                                                         && s.username == "root (DM/System)"
@@ -195,7 +202,6 @@ impl SessionManager for LocalSessionManager {
                                                     list.remove(pos);
                                                 }
 
-                                                // Only add if not already present
                                                 if !list.iter().any(|s| s.display_id == disp_num) {
                                                     list.push(SessionInfo {
                                                         id: format!("system-wayland-{}", disp_num),
@@ -218,4 +224,26 @@ impl SessionManager for LocalSessionManager {
 
         Ok(list)
     }
+}
+
+#[cfg(unix)]
+fn find_existing_display(username: &str) -> Option<u8> {
+    let session_file = std::path::Path::new("/var/lib/ttgtiso-desk/desktop-sessions.json");
+    if let Ok(text) = std::fs::read_to_string(session_file) {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(entries) = value.as_array() {
+                for entry in entries {
+                    let user = entry.get("username").and_then(|v| v.as_str());
+                    let display = entry.get("display_id").and_then(|v| v.as_u64());
+                    let state = entry.get("state").and_then(|v| v.as_str());
+                    if user == Some(username) && state == Some("active") {
+                        if let Some(display) = display {
+                            return Some(display as u8);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }

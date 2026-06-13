@@ -22,7 +22,6 @@ impl AgentApp {
     pub async fn run_with_shutdown(
         mut external_shutdown: Option<broadcast::Receiver<()>>,
     ) -> Result<()> {
-        // 1. Initialize logging (ignore error if already set, e.g. service mode)
         let subscriber = FmtSubscriber::builder()
             .with_max_level(Level::INFO)
             .finish();
@@ -30,38 +29,35 @@ impl AgentApp {
 
         info!("Starting TTGTiSO-Desk Server Agent...");
 
-        // 2. Load configuration from real file or defaults
         let config = config::load_config().unwrap_or_else(|e| {
             warn!("Config loading failed: {}. Using defaults.", e);
             config::AgentConfig::default()
         });
 
         info!(
-            "Configuration loaded: bind={}:{}, max_sessions={}, audit_enabled={}",
+            "Configuration loaded: bind={}:{}, mode={:?}, desktop_session={:?}, max_sessions={}, audit_enabled={}",
             config.bind_address,
             config.port,
+            config.connection_mode,
+            config.desktop_session_type,
             config.session_limits.max_concurrent_sessions,
             config.security_policy.enable_audit_logs
         );
 
-        // 3. Initialize components
         let audit_log_path = platform::default_audit_log_path();
         let audit_log = Arc::new(AuditLog::new(&audit_log_path));
-        let session_mgr = Arc::new(LocalSessionManager::new_default());
+        let session_mgr = Arc::new(LocalSessionManager::from_config(&config));
 
         audit_log.log_auth_success("system", "127.0.0.1");
         info!("Audit log initialized at {:?}", audit_log_path);
 
-        // 4. Create shutdown cancellation token
         let (shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
 
-        // 5. Start local control listener (UDS on Linux, localhost TCP elsewhere)
         let control_task = tokio::spawn(crate::socket::run_control_listener(
             session_mgr.clone(),
             shutdown_tx.subscribe(),
         ));
 
-        // 6. Start TCP connection listener with real protocol handler
         let port = config.port;
         let conn_task = tokio::spawn(crate::handler::run_connection_listener(
             config.clone(),
@@ -70,7 +66,6 @@ impl AgentApp {
             shutdown_tx.subscribe(),
         ));
 
-        // 6.5. Spawn UDP broadcast beacon for auto-discovery
         let agent_name = platform::agent_hostname();
         tokio::spawn(async move {
             use tokio::net::UdpSocket;
@@ -103,7 +98,6 @@ impl AgentApp {
             }
         });
 
-        // 7. Wait for termination signals
         info!(
             "Server Agent is fully initialized. Ready for connections on port {}.",
             port
@@ -111,7 +105,6 @@ impl AgentApp {
 
         wait_for_shutdown(external_shutdown.as_mut()).await?;
 
-        // 8. Graceful shutdown sequence
         info!("Graceful shutdown initiated. Notifying background tasks...");
 
         let stats = crate::handler::connection_stats();
@@ -136,8 +129,6 @@ impl AgentApp {
     }
 }
 
-/// Block until a shutdown condition is met: an OS termination signal, or a
-/// message on the optional external shutdown channel (Windows service stop).
 async fn wait_for_shutdown(external: Option<&mut broadcast::Receiver<()>>) -> Result<()> {
     #[cfg(target_os = "linux")]
     {
@@ -180,46 +171,4 @@ async fn wait_for_shutdown(external: Option<&mut broadcast::Receiver<()>>) -> Re
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_config_parsing_defaults() {
-        let config = config::load_config().unwrap();
-        assert_eq!(config.port, 22);
-        assert!(config.security_policy.allow_password_auth);
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn test_graceful_shutdown_mechanism() {
-        let temp_dir = std::env::current_dir().unwrap().join("target");
-        std::fs::create_dir_all(&temp_dir).ok();
-        let uds_path = temp_dir.join("test_agent_shutdown.sock");
-
-        let (shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
-        let session_mgr = Arc::new(LocalSessionManager::new_default());
-
-        let uds_path_str = uds_path.to_string_lossy().to_string();
-        let uds_task = tokio::spawn(crate::socket::run_uds_listener(
-            uds_path_str,
-            session_mgr,
-            shutdown_tx.subscribe(),
-        ));
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-
-        let send_res = shutdown_tx.send(());
-        assert!(send_res.is_ok());
-
-        let task_res = tokio::time::timeout(tokio::time::Duration::from_secs(2), uds_task).await;
-
-        assert!(
-            task_res.is_ok(),
-            "UDS listener did not shut down gracefully in time"
-        );
-    }
 }

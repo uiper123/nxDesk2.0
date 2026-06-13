@@ -6,6 +6,10 @@ use std::path::Path;
 pub struct AgentConfig {
     pub bind_address: String,
     pub port: u16,
+    #[serde(default)]
+    pub connection_mode: ConnectionMode,
+    #[serde(default)]
+    pub desktop_session_type: DesktopSessionType,
     pub session_limits: SessionLimits,
     pub security_policy: SecurityPolicy,
 }
@@ -15,10 +19,29 @@ impl Default for AgentConfig {
         Self {
             bind_address: "127.0.0.1".to_string(),
             port: 22,
+            connection_mode: ConnectionMode::Desktop,
+            desktop_session_type: DesktopSessionType::Auto,
             session_limits: SessionLimits::default(),
             security_policy: SecurityPolicy::default(),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ConnectionMode {
+    #[default]
+    Desktop,
+    App,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum DesktopSessionType {
+    #[default]
+    Auto,
+    Attach,
+    Virtual,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -56,20 +79,14 @@ impl Default for SecurityPolicy {
 /// Attempt to load configuration from known file paths in priority order.
 /// Falls back to defaults if no config file is found.
 pub fn load_config() -> Result<AgentConfig> {
-    // Highest priority: explicit path via environment variable (set by the
-    // service launcher / installer on any platform).
     if let Ok(env_path) = std::env::var("TTGTISO_CONFIG") {
         let p = Path::new(&env_path);
         if p.exists() {
             return load_config_from_file(p);
         }
-        tracing::warn!(
-            "TTGTISO_CONFIG set to {:?} but file does not exist",
-            env_path
-        );
+        tracing::warn!("TTGTISO_CONFIG set to {:?} but file does not exist", env_path);
     }
 
-    // Windows default location under ProgramData.
     #[cfg(target_os = "windows")]
     {
         if let Ok(program_data) = std::env::var("ProgramData") {
@@ -112,12 +129,9 @@ pub fn load_config_from_file(path: &Path) -> Result<AgentConfig> {
             .with_context(|| format!("Failed to parse TOML config: {:?}", path))?,
         "json" => serde_json::from_str(&contents)
             .with_context(|| format!("Failed to parse JSON config: {:?}", path))?,
-        _ => {
-            // Try TOML first, then JSON
-            toml::from_str(&contents)
-                .or_else(|_| serde_json::from_str(&contents).map_err(anyhow::Error::from))
-                .with_context(|| format!("Failed to parse config file: {:?}", path))?
-        }
+        _ => toml::from_str(&contents)
+            .or_else(|_| serde_json::from_str(&contents).map_err(anyhow::Error::from))
+            .with_context(|| format!("Failed to parse config file: {:?}", path))?,
     };
 
     tracing::info!("Loaded configuration from {:?}", path);
@@ -130,8 +144,7 @@ pub fn save_config(config: &AgentConfig, path: &Path) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let contents =
-        toml::to_string_pretty(config).context("Failed to serialize configuration to TOML")?;
+    let contents = toml::to_string_pretty(config).context("Failed to serialize configuration to TOML")?;
     std::fs::write(path, contents)
         .with_context(|| format!("Failed to write config file: {:?}", path))?;
 
@@ -148,6 +161,8 @@ mod tests {
         let config = load_config().unwrap();
         assert_eq!(config.port, 22);
         assert!(config.security_policy.allow_password_auth);
+        assert_eq!(config.connection_mode, ConnectionMode::Desktop);
+        assert_eq!(config.desktop_session_type, DesktopSessionType::Auto);
     }
 
     #[test]
@@ -155,6 +170,8 @@ mod tests {
         let json_data = r#"{
             "bind_address": "0.0.0.0",
             "port": 2222,
+            "connection_mode": "desktop",
+            "desktop_session_type": "attach",
             "session_limits": {
                 "max_concurrent_sessions": 10,
                 "session_timeout_seconds": 1800
@@ -167,6 +184,8 @@ mod tests {
 
         let parsed: AgentConfig = serde_json::from_str(json_data).unwrap();
         assert_eq!(parsed.port, 2222);
+        assert_eq!(parsed.connection_mode, ConnectionMode::Desktop);
+        assert_eq!(parsed.desktop_session_type, DesktopSessionType::Attach);
         assert!(!parsed.security_policy.allow_password_auth);
     }
 
@@ -175,6 +194,8 @@ mod tests {
         let toml_data = r#"
 bind_address = "0.0.0.0"
 port = 2222
+connection_mode = "app"
+desktop_session_type = "virtual"
 
 [session_limits]
 max_concurrent_sessions = 10
@@ -186,6 +207,8 @@ enable_audit_logs = true
 "#;
         let parsed: AgentConfig = toml::from_str(toml_data).unwrap();
         assert_eq!(parsed.port, 2222);
+        assert_eq!(parsed.connection_mode, ConnectionMode::App);
+        assert_eq!(parsed.desktop_session_type, DesktopSessionType::Virtual);
         assert_eq!(parsed.session_limits.max_concurrent_sessions, 10);
         assert!(!parsed.security_policy.allow_password_auth);
     }
@@ -195,6 +218,8 @@ enable_audit_logs = true
         let config = AgentConfig {
             bind_address: "192.168.1.100".to_string(),
             port: 8022,
+            connection_mode: ConnectionMode::Desktop,
+            desktop_session_type: DesktopSessionType::Virtual,
             session_limits: SessionLimits {
                 max_concurrent_sessions: 20,
                 session_timeout_seconds: 7200,

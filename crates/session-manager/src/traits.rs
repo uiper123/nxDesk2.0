@@ -1,6 +1,12 @@
 use anyhow::Result;
 use shared_types::{SessionInfo, SessionKind, SessionStatus};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionProvisioning {
+    AttachExisting,
+    VirtualDesktop,
+}
+
 pub trait UserSession: Send + Sync {
     fn id(&self) -> &str;
     fn username(&self) -> &str;
@@ -11,7 +17,8 @@ pub trait UserSession: Send + Sync {
 }
 
 pub trait SessionBackend: Send + Sync {
-    fn create_session(&self, username: &str, display_id: u8) -> Result<Box<dyn UserSession>>;
+    fn provisioning(&self, username: &str) -> SessionProvisioning;
+    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>>;
 }
 
 pub trait DisplayAllocator: Send + Sync {

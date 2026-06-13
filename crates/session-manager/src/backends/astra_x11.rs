@@ -1,5 +1,6 @@
-use crate::traits::{SessionBackend, UserSession};
+use crate::traits::{SessionBackend, SessionProvisioning, UserSession};
 use anyhow::{Context, Result};
+use config::{ConnectionMode, DesktopSessionType};
 use shared_types::{SessionKind, SessionStatus};
 use std::fs;
 use std::process::{Child, Command};
@@ -90,131 +91,63 @@ pub struct AstraX11UserSession {
 }
 
 impl AstraX11UserSession {
-    pub fn start(username: &str, display_id: u8) -> Result<Self> {
+    pub fn start(username: &str, display_id: Option<u8>) -> Result<Self> {
+        let display_id = display_id.unwrap_or(10);
         let display_str = format!(":{}", display_id);
-        info!(
-            "Starting Astra X11 session for {} on display {}",
-            username, display_str
-        );
+        info!("Starting desktop session for {} on {}", username, display_str);
 
-        let mut session_kind = detect_existing_session_kind(username, display_id);
+        let session_kind = detect_existing_session_kind(username, display_id);
+        let mut xvfb_proc = None;
+        let mut desktop_proc = None;
 
-        let xvfb_proc = if matches!(session_kind, SessionKind::Wayland | SessionKind::X11) {
-            None
-        } else {
-            let xvfb = Command::new("runuser")
-                .arg("-u")
-                .arg(username)
-                .arg("--")
-                .arg("Xvfb")
-                .arg(&display_str)
-                .arg("-screen")
-                .arg("0")
-                .arg("1920x1080x24")
-                .arg("-nolisten")
-                .arg("tcp")
-                .spawn()
-                .context("Failed to spawn Xvfb. Ensure Xvfb is installed.");
-
-            match xvfb {
-                Ok(c) => {
-                    session_kind = SessionKind::Virtual;
-                    Some(c)
-                }
-                Err(e) => {
-                    warn!(
-                        "Xvfb spawn failed: {}. Falling back to virtual session metadata only.",
-                        e
-                    );
-                    session_kind = SessionKind::Virtual;
-                    None
-                }
+        match session_kind {
+            SessionKind::X11 | SessionKind::Wayland => {
+                info!("Attaching to existing graphical session {} for {}", display_str, username);
             }
-        };
+            _ => {
+                let xvfb = Command::new("runuser")
+                    .arg("-u")
+                    .arg(username)
+                    .arg("--")
+                    .arg("Xvfb")
+                    .arg(&display_str)
+                    .arg("-screen")
+                    .arg("0")
+                    .arg("1920x1080x24")
+                    .arg("-nolisten")
+                    .arg("tcp")
+                    .spawn()
+                    .context("Failed to spawn Xvfb. Ensure Xvfb is installed.");
 
-        let desktop_proc = if matches!(session_kind, SessionKind::Virtual) && xvfb_proc.is_some() {
-            let wms = vec![
-                "fly-wm",
-                "openbox",
-                "kwin_x11",
-                "mate-session",
-                "xfce4-session",
-                "i3",
-                "xterm",
-            ];
-            let mut spawned = None;
-            for wm in wms {
-                if !binary_exists(wm) {
-                    continue;
-                }
-                info!("Trying to spawn window manager: {}", wm);
-                let child = prepare_user_command(username, &display_str).arg(wm).spawn();
-                match child {
+                match xvfb {
                     Ok(c) => {
-                        info!("Successfully spawned window manager: {}", wm);
-                        spawned = Some(c);
-                        break;
+                        xvfb_proc = Some(c);
+                        let shells = [
+                            "fly-wm",
+                            "startplasma-x11",
+                            "plasma-session",
+                            "gnome-session",
+                            "xfce4-session",
+                            "mate-session",
+                            "cinnamon-session",
+                            "openbox",
+                        ];
+                        for shell in shells {
+                            if !binary_exists(shell) {
+                                continue;
+                            }
+                            if let Ok(child) = prepare_user_command(username, &display_str).arg(shell).spawn() {
+                                desktop_proc = Some(child);
+                                break;
+                            }
+                        }
                     }
-                    Err(_) => {
-                        warn!("Window manager {} is not available.", wm);
-                    }
-                }
-            }
-
-            if spawned.is_some() {
-                info!(
-                    "Spawning desktop helper applications on display {}",
-                    display_str
-                );
-
-                if binary_exists("xsetroot") {
-                    let _ = prepare_user_command(username, &display_str)
-                        .arg("xsetroot")
-                        .args(["-solid", "#1c1d26"])
-                        .spawn();
-                }
-
-                let terminals = vec![
-                    "konsole",
-                    "x-terminal-emulator",
-                    "mate-terminal",
-                    "gnome-terminal",
-                    "xterm",
-                ];
-                for term in terminals {
-                    if !binary_exists(term) {
-                        continue;
-                    }
-                    if prepare_user_command(username, &display_str)
-                        .arg(term)
-                        .spawn()
-                        .is_ok()
-                    {
-                        info!("Successfully spawned terminal: {}", term);
-                        break;
-                    }
-                }
-
-                let file_managers = vec!["fly-fm", "pcmanfm", "thunar", "nautilus", "dolphin"];
-                for fm in file_managers {
-                    if !binary_exists(fm) {
-                        continue;
-                    }
-                    if prepare_user_command(username, &display_str)
-                        .arg(fm)
-                        .spawn()
-                        .is_ok()
-                    {
-                        info!("Successfully spawned file manager: {}", fm);
-                        break;
+                    Err(e) => {
+                        warn!("Xvfb spawn failed: {}", e);
                     }
                 }
             }
-
-            spawned
-        } else {
-            None
-        };
+        }
 
         Ok(Self {
             id: format!("{}-astra-{}", username, display_id),
@@ -229,54 +162,54 @@ impl AstraX11UserSession {
 }
 
 impl UserSession for AstraX11UserSession {
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn username(&self) -> &str {
-        &self.username
-    }
-
-    fn display_id(&self) -> u8 {
-        self.display_id
-    }
-
-    fn session_kind(&self) -> SessionKind {
-        self.session_kind
-    }
-
-    fn status(&self) -> SessionStatus {
-        self.status
-    }
-
+    fn id(&self) -> &str { &self.id }
+    fn username(&self) -> &str { &self.username }
+    fn display_id(&self) -> u8 { self.display_id }
+    fn session_kind(&self) -> SessionKind { self.session_kind }
+    fn status(&self) -> SessionStatus { self.status }
     fn stop(&mut self) -> Result<()> {
-        info!("Stopping Astra X11 session {}", self.id);
-
-        if let Some(mut proc) = self.desktop_process.take() {
-            let _ = proc.kill();
-            let _ = proc.wait();
-        }
-
-        if let Some(mut proc) = self.xvfb_process.take() {
-            let _ = proc.kill();
-            let _ = proc.wait();
-        }
-
-        let lock_file = format!("/tmp/.X{}-lock", self.display_id);
-        let socket_file = format!("/tmp/.X11-unix/X{}", self.display_id);
-        let _ = fs::remove_file(lock_file);
-        let _ = fs::remove_file(socket_file);
-
+        if let Some(mut proc) = self.desktop_process.take() { let _ = proc.kill(); let _ = proc.wait(); }
+        if let Some(mut proc) = self.xvfb_process.take() { let _ = proc.kill(); let _ = proc.wait(); }
+        let _ = fs::remove_file(format!("/tmp/.X{}-lock", self.display_id));
+        let _ = fs::remove_file(format!("/tmp/.X11-unix/X{}", self.display_id));
         self.status = SessionStatus::Disconnected;
         Ok(())
     }
 }
 
-pub struct AstraX11Backend;
+pub struct AstraX11Backend {
+    mode: ConnectionMode,
+    session_type: DesktopSessionType,
+}
+
+impl AstraX11Backend {
+    pub fn from_config(mode: ConnectionMode, session_type: DesktopSessionType) -> Self {
+        Self { mode, session_type }
+    }
+
+    fn should_attach(&self) -> bool {
+        matches!(self.session_type, DesktopSessionType::Attach)
+            || matches!(self.session_type, DesktopSessionType::Auto)
+                && matches!(self.mode, ConnectionMode::App)
+    }
+}
+
+impl Default for AstraX11Backend {
+    fn default() -> Self {
+        Self { mode: ConnectionMode::Desktop, session_type: DesktopSessionType::Auto }
+    }
+}
 
 impl SessionBackend for AstraX11Backend {
-    fn create_session(&self, username: &str, display_id: u8) -> Result<Box<dyn UserSession>> {
-        let session = AstraX11UserSession::start(username, display_id)?;
-        Ok(Box::new(session))
+    fn provisioning(&self, _username: &str) -> SessionProvisioning {
+        if self.should_attach() {
+            SessionProvisioning::AttachExisting
+        } else {
+            SessionProvisioning::VirtualDesktop
+        }
+    }
+
+    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>> {
+        Ok(Box::new(AstraX11UserSession::start(username, display_id)?))
     }
 }
