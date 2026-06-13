@@ -308,12 +308,9 @@ fn find_wayland_display(runtime_dir: &str, display_id: u8) -> Option<String> {
         "wayland-0".to_string(),
         "wayland-1".to_string(),
     ];
-    for candidate in candidates {
-        if runtime.join(&candidate).exists() {
-            return Some(candidate);
-        }
-    }
-    None
+    candidates
+        .into_iter()
+        .find(|candidate| runtime.join(candidate).exists())
 }
 
 #[cfg(target_os = "windows")]
@@ -339,6 +336,7 @@ fn detect_windows_graphical_session() -> Option<GraphicalSession> {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 fn detect_windows_graphical_session() -> Option<GraphicalSession> {
     None
 }
