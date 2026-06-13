@@ -223,7 +223,8 @@ impl HostDiscovery {
         ip: &str,
         port: u16,
     ) -> Result<Vec<crate::models::ActiveSession>, anyhow::Error> {
-        let json_str = if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        let json_str = if Self::is_local_host(actual_ip) {
             self.run_local_agent_command("sessions").await?
         } else {
             let sock_path = Self::LOCAL_AGENT_SOCKET;
@@ -615,7 +616,8 @@ impl HostDiscovery {
                     }
                 }
                 if os == "Unknown / Offline" || os.is_empty() {
-                    if Self::is_local_host(&config.ip) {
+                    let (_, actual_ip) = Self::parse_ssh_target(&config.ip);
+                    if Self::is_local_host(actual_ip) {
                         os = Self::detect_local_os();
                     } else {
                         os = "Linux".to_string();
@@ -674,7 +676,8 @@ impl HostDiscovery {
                     }
                 }
                 if os == "Unknown / Offline" || os.is_empty() {
-                    if Self::is_local_host(&host.ip) {
+                    let (_, actual_ip) = Self::parse_ssh_target(&host.ip);
+                    if Self::is_local_host(actual_ip) {
                         os = Self::detect_local_os();
                     } else {
                         os = "Linux".to_string();
@@ -692,7 +695,8 @@ impl HostDiscovery {
         ip: &str,
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command("applications").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);

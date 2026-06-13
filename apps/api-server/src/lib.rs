@@ -125,7 +125,7 @@ pub async fn run() -> Result<()> {
                                     id: next_id,
                                     name: name.to_string(),
                                     ip: ip.clone(),
-                                    port: 22,
+                                    port: port as u16,
                                     status: HostStatus::Online,
                                     active_sessions: 0,
                                     operating_system: os,
