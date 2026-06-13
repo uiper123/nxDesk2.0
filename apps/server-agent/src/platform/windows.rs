@@ -194,12 +194,11 @@ pub fn launch_application(_display_id: u32, exec_cmd: &str) -> Value {
 /// pipeline rather than an external VNC server, so there is nothing to start.
 /// The agent's TCP port is the single streaming endpoint.
 pub fn ensure_vnc(_display_id: u32) -> Value {
-    let port = config::load_config().map(|c| c.port).unwrap_or(2222);
     json!({
         "success": true,
-        "message": "Windows agent streams directly over its TCP port; no external VNC server is required.",
-        "native_streaming": true,
-        "port": port
+        "message": "Using standard VNC server on Windows.",
+        "native_streaming": false,
+        "port": 5900
     })
 }
 
