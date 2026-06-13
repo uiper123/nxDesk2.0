@@ -130,13 +130,22 @@ impl HostDiscovery {
         ))
     }
 
+    pub fn parse_ssh_target(target: &str) -> (Option<&str>, &str) {
+        if let Some(pos) = target.find('@') {
+            (Some(&target[..pos]), &target[pos + 1..])
+        } else {
+            (None, target)
+        }
+    }
+
     /// Проверка доступности хоста: локально через UDS агента, удаленно по TCP порту
     async fn check_host_availability(&self, ip: &str, port: u16) -> bool {
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             return self.check_local_agent_health().await;
         }
 
-        let addr = format!("{}:{}", ip, port);
+        let addr = format!("{}:{}", actual_ip, port);
 
         match timeout(Duration::from_secs(2), TcpStream::connect(&addr)).await {
             Ok(Ok(_)) => {
@@ -169,7 +178,8 @@ impl HostDiscovery {
         ip: &str,
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command("status").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
@@ -290,7 +300,8 @@ impl HostDiscovery {
         let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("stop_session {}", session_id);
 
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             if json_val
@@ -353,9 +364,13 @@ impl HostDiscovery {
 
     /// Получить порт для указанного хоста из конфигурации
     pub fn get_port_for_host(&self, ip: &str) -> u16 {
+        let (_, target_ip) = Self::parse_ssh_target(ip);
         self.config_hosts
             .iter()
-            .find(|c| c.ip == ip)
+            .find(|c| {
+                let (_, config_ip) = Self::parse_ssh_target(&c.ip);
+                config_ip == target_ip
+            })
             .map(|c| c.ssh_port)
             .unwrap_or(22)
     }
@@ -376,7 +391,8 @@ impl HostDiscovery {
         let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("start_session {}", username);
 
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             if json_val
@@ -483,7 +499,8 @@ impl HostDiscovery {
         lines: usize,
     ) -> Result<Vec<crate::models::LogEntry>, anyhow::Error> {
         let log_path = "/var/log/ttgtiso-desk/audit.log";
-        let cmd = if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        let cmd = if Self::is_local_host(actual_ip) {
             let mut c = Command::new("sh");
             c.arg("-c").arg(format!("tail -n {} {}", lines, log_path));
             c
@@ -718,7 +735,8 @@ impl HostDiscovery {
         ip: &str,
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command("users").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
@@ -761,7 +779,8 @@ impl HostDiscovery {
         ip: &str,
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command("metrics").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
@@ -806,7 +825,8 @@ impl HostDiscovery {
         action: &str,
     ) -> Result<serde_json::Value, anyhow::Error> {
         let cmd_payload = format!("power {}", action);
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
@@ -854,7 +874,8 @@ impl HostDiscovery {
         let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("launch {} {}", display_id, command);
 
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
@@ -900,7 +921,8 @@ impl HostDiscovery {
         let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("ensure_vnc {}", display_id);
 
-        if Self::is_local_host(ip) {
+        let (_, actual_ip) = Self::parse_ssh_target(ip);
+        if Self::is_local_host(actual_ip) {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);

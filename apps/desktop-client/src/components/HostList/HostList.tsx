@@ -3,7 +3,7 @@ import styles from "./HostList.module.css";
 import { apiService, Host, ActiveSession } from "../../services/api";
 import { useToast } from "../Toast";
 import { logger } from "../../services/logger";
-import { IconSearch, IconPlus, IconClose, IconUser, IconRefresh } from "../Icons";
+import { IconSearch, IconPlus, IconClose, IconUser, IconRefresh, IconTrash, IconEdit } from "../Icons";
 
 interface HostListProps {
     onSelectHost: (hostIp: string, port: number, username: string, displayId?: number) => void;
@@ -29,6 +29,14 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
     const [newHostPort, setNewHostPort] = useState(22);
     const [addHostLoading, setAddHostLoading] = useState(false);
     const [addHostError, setAddHostError] = useState("");
+
+    // Edit Host state
+    const [editingHost, setEditingHost] = useState<Host | null>(null);
+    const [editHostName, setEditHostName] = useState("");
+    const [editHostIp, setEditHostIp] = useState("");
+    const [editHostPort, setEditHostPort] = useState(22);
+    const [editHostLoading, setEditHostLoading] = useState(false);
+    const [editHostError, setEditHostError] = useState("");
 
     // Scan Hosts state
     const [showScanHosts, setShowScanHosts] = useState(false);
@@ -173,6 +181,70 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
         }
     };
 
+    const handleDeleteHost = async (host: Host) => {
+        if (!window.confirm(`Вы уверены, что хотите удалить хост ${host.name} (${host.ip})?`)) {
+            return;
+        }
+        try {
+            const res = await apiService.deleteHost(host.ip);
+            if (res.success) {
+                showToast("success", "Хост успешно удален");
+                setHosts(prev => prev.filter(h => h.ip !== host.ip));
+            } else {
+                showToast("error", res.message || "Не удалось удалить хост");
+            }
+        } catch (err: any) {
+            showToast("error", err.message || "Ошибка при удалении хоста");
+        }
+    };
+
+    const handleRefresh = async () => {
+        setLoading(true);
+        try {
+            const data = await apiService.getHosts();
+            setHosts(data);
+            showToast("success", "Список хостов обновлен");
+        } catch (err) {
+            showToast("error", "Не удалось обновить список хостов");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOpenEditHost = (host: Host) => {
+        setEditingHost(host);
+        setEditHostName(host.name);
+        setEditHostIp(host.ip);
+        setEditHostPort(host.port);
+        setEditHostError("");
+    };
+
+    const handleUpdateHost = async () => {
+        if (!editingHost) return;
+        if (!editHostName.trim() || !editHostIp.trim()) return;
+        setEditHostLoading(true);
+        setEditHostError("");
+        try {
+            const res = await apiService.updateHost(editingHost.ip, {
+                name: editHostName.trim(),
+                ip: editHostIp.trim(),
+                port: editHostPort,
+            });
+            if (res.success) {
+                setEditingHost(null);
+                const data = await apiService.getHosts();
+                setHosts(data);
+                showToast("success", "Хост успешно обновлен");
+            } else {
+                setEditHostError(res.message || "Не удалось обновить хост");
+            }
+        } catch (err: any) {
+            setEditHostError(err.message || "Ошибка при обновлении хоста");
+        } finally {
+            setEditHostLoading(false);
+        }
+    };
+
     const handleScanHosts = async () => {
         setShowScanHosts(true);
         setScanLoading(true);
@@ -235,6 +307,9 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                     <span className={styles.count}>{visibleHosts.length} из {hosts.length}</span>
                 </div>
                 <div className={styles.headerActions}>
+                    <button className={styles.secondaryButton} onClick={handleRefresh} disabled={loading}>
+                        <IconRefresh size={15} /> Обновить
+                    </button>
                     <button className={styles.secondaryButton} onClick={handleScanHosts}>
                         <IconSearch size={15} /> Сканировать сеть
                     </button>
@@ -301,6 +376,29 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                             <span className={styles.sessions}>
                                 {host.active_sessions} активных сессий
                             </span>
+                        </div>
+
+                        <div className={styles.actionButtons}>
+                            <button 
+                                className={`${styles.actionIconButton} ${styles.editBtn}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditHost(host);
+                                }}
+                                title="Редактировать"
+                            >
+                                <IconEdit size={14} />
+                            </button>
+                            <button 
+                                className={`${styles.actionIconButton} ${styles.deleteBtn}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteHost(host);
+                                }}
+                                title="Удалить"
+                            >
+                                <IconTrash size={14} />
+                            </button>
                         </div>
 
                         <button 
@@ -440,6 +538,52 @@ export const HostList: React.FC<HostListProps> = ({ onSelectHost }) => {
                             </div>
                             {addHostError && (
                                 <div className={styles.errorText}>{addHostError}</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingHost && (
+                <div className={styles.modalOverlay} onClick={() => setEditingHost(null)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>Редактирование хоста</h3>
+                            <button className={styles.closeButton} onClick={() => setEditingHost(null)} aria-label="Закрыть"><IconClose size={16} /></button>
+                        </div>
+                        <div className={styles.modalSection}>
+                            <div className={`${styles.inputGroup} ${styles.inputGroupColumn}`}>
+                                <input 
+                                    type="text" 
+                                    placeholder="Имя хоста (например, Server1)" 
+                                    value={editHostName}
+                                    onChange={(e) => setEditHostName(e.target.value)}
+                                    disabled={editHostLoading}
+                                />
+                                <input 
+                                    type="text" 
+                                    placeholder="IP адрес (например, vladimir@192.168.1.100)" 
+                                    value={editHostIp}
+                                    onChange={(e) => setEditHostIp(e.target.value)}
+                                    disabled={editHostLoading}
+                                />
+                                <input 
+                                    type="number" 
+                                    placeholder="SSH порт (обычно 22)" 
+                                    value={editHostPort}
+                                    onChange={(e) => setEditHostPort(Number(e.target.value))}
+                                    disabled={editHostLoading}
+                                />
+                                <button 
+                                    className={styles.actionButton}
+                                    onClick={handleUpdateHost}
+                                    disabled={editHostLoading || !editHostName.trim() || !editHostIp.trim()}
+                                >
+                                    Сохранить
+                                </button>
+                            </div>
+                            {editHostError && (
+                                <div className={styles.errorText}>{editHostError}</div>
                             )}
                         </div>
                     </div>

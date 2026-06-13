@@ -35,7 +35,10 @@ pub async fn run() -> Result<()> {
             "/api/hosts",
             get(handlers::get_hosts).post(handlers::add_host),
         )
-        .route("/api/hosts/{ip}", post(handlers::update_host))
+        .route(
+            "/api/hosts/{ip}",
+            post(handlers::update_host).delete(handlers::delete_host),
+        )
         .route("/api/hosts/discovered", get(handlers::get_discovered_hosts))
         .route("/api/sessions/active", get(handlers::get_active_sessions))
         .route(

@@ -185,6 +185,12 @@ class ApiService {
     });
   }
 
+  async deleteHost(hostIp: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/hosts/${encodeURIComponent(hostIp)}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getHosts(): Promise<Host[]> {
     return this.request<Host[]>('/hosts');
   }

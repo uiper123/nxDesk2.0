@@ -276,6 +276,26 @@ pub async fn update_host(
     })))
 }
 
+pub async fn delete_host(
+    State(state): State<Arc<AppState>>,
+    Path(ip): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let mut hosts = state.hosts.write().await;
+    let initial_len = hosts.len();
+    hosts.retain(|host| host.ip != ip);
+
+    if hosts.len() == initial_len {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    rewrite_hosts_toml(&hosts);
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Host deleted"
+    })))
+}
+
 pub async fn get_active_sessions(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<ActiveSession>>, StatusCode> {
@@ -532,7 +552,8 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         }
     };
 
-    let target_addr = format!("{}:{}", params.host, vnc_port);
+    let (_, actual_ip) = crate::discovery::HostDiscovery::parse_ssh_target(&params.host);
+    let target_addr = format!("{}:{}", actual_ip, vnc_port);
     info!(
         "Connecting WebSocket proxy to VNC TCP target: {}",
         target_addr

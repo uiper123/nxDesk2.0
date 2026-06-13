@@ -166,3 +166,15 @@ export const IconRocket: React.FC<IconProps> = ({ size = 18, className }) => (
     <path d="M8 12l-3 3 1 2 3-1M16 12l3 3-1 2-3-1M12 16v5" />
   </svg>
 );
+
+export const IconTrash: React.FC<IconProps> = ({ size = 18, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+  </svg>
+);
+
+export const IconEdit: React.FC<IconProps> = ({ size = 18, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" />
+  </svg>
+);
