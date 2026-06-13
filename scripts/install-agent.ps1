@@ -5,11 +5,11 @@
 #  background under the LocalSystem account (survives reboots and logoff).
 #
 #  Usage (run in an elevated / Administrator PowerShell):
-#      # Install the latest release from GitHub:
-#      powershell -ExecutionPolicy Bypass -File install-agent.ps1
+#      # Install the latest release from GitHub with SSH key authorization:
+#      powershell -ExecutionPolicy Bypass -File install-agent.ps1 -SshKey "ssh-ed25519 ..."
 #
 #      # Install from a local binary you already built:
-#      powershell -ExecutionPolicy Bypass -File install-agent.ps1 -BinaryPath .\server-agent.exe
+#      powershell -ExecutionPolicy Bypass -File install-agent.ps1 -BinaryPath .\server-agent.exe -SshKey "ssh-ed25519 ..."
 #
 #      # Uninstall:
 #      powershell -ExecutionPolicy Bypass -File install-agent.ps1 -Uninstall
@@ -20,6 +20,8 @@ param(
     [string]$BinaryPath = "",
     [string]$Repo = "uiper123/nxDesk2.0",
     [string]$Version = "latest",
+    [string]$SshKey = "",
+    [switch]$Unattended,
     [switch]$Uninstall
 )
 
@@ -93,6 +95,55 @@ if ($Uninstall) {
 
 Write-Host "=== TTGTiSO-Desk Server Agent — Windows install ==="
 
+# 1. Install and configure OpenSSH Server
+Write-Host "Checking OpenSSH Server optional feature..."
+$sshService = Get-Service -Name sshd -ErrorAction SilentlyContinue
+if ($null -eq $sshService) {
+    Write-Host "Installing OpenSSH Server..."
+    try {
+        $sshStatus = Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+        if ($sshStatus.State -ne "Installed") {
+            Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
+        }
+    } catch {
+        Write-Warning "Failed to install OpenSSH Server via WindowsCapability. Checking if dism works..."
+        dism.exe /online /enable-feature /featurename:OpenSSH-Server-Package-Client-Package /all /norestart | Out-Null
+    }
+}
+
+Write-Host "Enabling and starting OpenSSH service (sshd)..."
+Set-Service -Name sshd -StartupType 'Automatic'
+Start-Service sshd -ErrorAction SilentlyContinue
+
+# 2. Configure SSH Public Key
+if ($SshKey -eq "" -and -not $Unattended) {
+    $SshKey = Read-Host -Prompt "Please enter/paste the SSH public key (ssh-ed25519 ...) of the main client (or press Enter to skip)"
+}
+
+if ($SshKey -ne "") {
+    Write-Host "Configuring SSH public key authorization..."
+    
+    # Standard user profile authorized_keys
+    $sshDir = Join-Path $Home ".ssh"
+    if (-not (Test-Path $sshDir)) {
+        New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+    }
+    $authKeysFile = Join-Path $sshDir "authorized_keys"
+    Add-Content -Path $authKeysFile -Value "`n$SshKey" -ErrorAction SilentlyContinue
+    
+    # Windows-specific global administrators authorized_keys (for Admin users)
+    $adminKeysFile = "C:\ProgramData\ssh\administrators_authorized_keys"
+    if (Test-Path "C:\ProgramData\ssh") {
+        Add-Content -Path $adminKeysFile -Value "`n$SshKey" -ErrorAction SilentlyContinue
+        # Strict ACL permissions required by sshd on Windows for administrators_authorized_keys
+        icacls.exe $adminKeysFile /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F" | Out-Null
+    }
+    Write-Host "✅ SSH public key added successfully."
+} else {
+    Write-Warning "Skipping SSH public key configuration."
+}
+
+# 3. Create Directories
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $ConfigDir  | Out-Null
 New-Item -ItemType Directory -Force -Path $LogDir     | Out-Null
@@ -100,7 +151,7 @@ New-Item -ItemType Directory -Force -Path $LogDir     | Out-Null
 # Stop any running instance before overwriting the binary.
 Stop-And-Remove-Service
 
-# Obtain the binary.
+# 4. Obtain the binary.
 if ($BinaryPath -ne "") {
     if (-not (Test-Path $BinaryPath)) { throw "BinaryPath '$BinaryPath' does not exist." }
     Write-Host "Copying binary from $BinaryPath"
@@ -114,7 +165,7 @@ if ($BinaryPath -ne "") {
     Remove-Item $tmp -ErrorAction SilentlyContinue
 }
 
-# Write a default config if none exists.
+# 5. Write default config if none exists.
 if (-not (Test-Path $ConfigFile)) {
     Write-Host "Writing default config to $ConfigFile"
     @"
@@ -132,7 +183,7 @@ enable_audit_logs = true
 "@ | Set-Content -Path $ConfigFile -Encoding UTF8
 }
 
-# Register + start the service via the agent's built-in installer (auto-start at boot).
+# 6. Register + start the service via the agent's built-in installer (auto-start at boot).
 Write-Host "Registering Windows service '$ServiceName' (auto-start)..."
 & $ExePath --install-service
 if ($LASTEXITCODE -ne 0) {
