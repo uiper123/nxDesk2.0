@@ -91,10 +91,12 @@ SSH_DIR="$USER_HOME/.ssh"
 # Ensure .ssh directory exists with correct permissions
 sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
 sudo -u "$REAL_USER" chmod 700 "$SSH_DIR"
-
-echo "Please paste the SSH public key (id_rsa.pub) of the main server (from 192.168.1.47),"
-echo "then press Enter:"
-read -r PUBLIC_KEY
+PUBLIC_KEY=$1
+if [ -z "$PUBLIC_KEY" ]; then
+  echo "Please paste the SSH public key (id_rsa.pub) of the main server (from 192.168.1.47),"
+  echo "then press Enter:"
+  read -r PUBLIC_KEY
+fi
 
 if [ -n "$PUBLIC_KEY" ]; then
   AUTH_KEYS="$SSH_DIR/authorized_keys"
