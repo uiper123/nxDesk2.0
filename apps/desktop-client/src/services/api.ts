@@ -204,7 +204,7 @@ class ApiService {
   }
 
   async getSystemUsers(ip: string): Promise<string[]> {
-    return this.request<string[]>(`/hosts/${ip}/users`);
+    return this.request<string[]>(`/hosts/${encodeURIComponent(ip)}/users`);
   }
 
   async terminateSession(sessionId: string): Promise<{ success: boolean; message: string }> {
@@ -243,7 +243,7 @@ class ApiService {
   }
 
   async getApplications(hostIp: string): Promise<AppsResponse> {
-    return this.request<AppsResponse>(`/hosts/${hostIp}/applications`);
+    return this.request<AppsResponse>(`/hosts/${encodeURIComponent(hostIp)}/applications`);
   }
 
   async launchApplication(sessionId: string, command: string): Promise<{ success: boolean; message: string }> {
@@ -254,11 +254,11 @@ class ApiService {
   }
 
   async getHostMetrics(hostIp: string): Promise<SystemMetrics> {
-    return this.request<SystemMetrics>(`/hosts/${hostIp}/metrics`);
+    return this.request<SystemMetrics>(`/hosts/${encodeURIComponent(hostIp)}/metrics`);
   }
 
   async executePowerAction(hostIp: string, action: 'reboot' | 'shutdown' | 'lock'): Promise<{ success: boolean; message: string }> {
-    return this.request(`/hosts/${hostIp}/power`, {
+    return this.request(`/hosts/${encodeURIComponent(hostIp)}/power`, {
       method: 'POST',
       body: JSON.stringify({ action }),
     });

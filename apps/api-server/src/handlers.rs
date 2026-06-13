@@ -79,23 +79,19 @@ pub async fn start_session(
     info!("Starting remote session for user: {}", payload.username);
 
     if !payload.username.is_empty() && !payload.host.is_empty() {
-        let mut port = 22;
-        {
-            let hosts = state.hosts.read().await;
-            if let Some(h) = hosts.iter().find(|h| h.ip == payload.host) {
-                port = h.port;
-            }
-        }
+        let (host, port) = state
+            .resolve_host_port(&payload.host, Some(payload.port))
+            .await;
 
         match state
             .discovery
-            .start_session_on_host(&payload.host, port, &payload.username)
+            .start_session_on_host(&host, port, &payload.username)
             .await
         {
             Ok(session) => {
                 info!(
                     "Successfully started X11 session for {} on {}",
-                    payload.username, payload.host
+                    payload.username, host
                 );
                 let mut sessions = state.sessions.write().await;
                 sessions.push(session);
@@ -116,7 +112,7 @@ pub async fn start_session(
                     let sessions = state.sessions.read().await;
                     if sessions
                         .iter()
-                        .any(|s| s.host_ip == payload.host && s.username == payload.username)
+                        .any(|s| s.host_ip == host && s.username == payload.username)
                     {
                         session_active = true;
                     }
@@ -230,8 +226,14 @@ fn rewrite_hosts_toml(hosts: &[Host]) {
 
 pub async fn add_host(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<AddHostRequest>,
+    Json(mut payload): Json<AddHostRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    let target = state
+        .discovery
+        .normalize_remote_target(&payload.ip, Some(payload.port), None);
+    payload.ip = target.host;
+    payload.port = target.port;
+
     let mut hosts = state.hosts.write().await;
 
     if hosts.iter().any(|h| h.ip == payload.ip) {
@@ -254,10 +256,20 @@ pub async fn add_host(
 pub async fn update_host(
     State(state): State<Arc<AppState>>,
     Path(ip): Path<String>,
-    Json(payload): Json<UpdateHostRequest>,
+    Json(mut payload): Json<UpdateHostRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    let lookup = state
+        .discovery
+        .normalize_remote_target(&ip, None, None)
+        .host;
+    let target = state
+        .discovery
+        .normalize_remote_target(&payload.ip, Some(payload.port), None);
+    payload.ip = target.host;
+    payload.port = target.port;
+
     let mut hosts = state.hosts.write().await;
-    let Some(host) = hosts.iter_mut().find(|host| host.ip == ip) else {
+    let Some(host) = hosts.iter_mut().find(|host| host.ip == lookup) else {
         return Err(StatusCode::NOT_FOUND);
     };
 
@@ -280,9 +292,13 @@ pub async fn delete_host(
     State(state): State<Arc<AppState>>,
     Path(ip): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    let lookup = state
+        .discovery
+        .normalize_remote_target(&ip, None, None)
+        .host;
     let mut hosts = state.hosts.write().await;
     let initial_len = hosts.len();
-    hosts.retain(|host| host.ip != ip);
+    hosts.retain(|host| host.ip != lookup);
 
     if hosts.len() == initial_len {
         return Err(StatusCode::NOT_FOUND);
@@ -318,19 +334,13 @@ pub async fn terminate_session(
     };
 
     if let Some(ip) = host_ip {
-        let mut port = 22;
-        {
-            let hosts = state.hosts.read().await;
-            if let Some(h) = hosts.iter().find(|h| h.ip == ip) {
-                port = h.port;
-            }
-        }
+        let (host, port) = state.resolve_host_port(&ip, None).await;
         if let Err(e) = state
             .discovery
-            .stop_session_on_host(&ip, port, &session_id)
+            .stop_session_on_host(&host, port, &session_id)
             .await
         {
-            tracing::error!("Failed to stop session {} on {}: {}", session_id, ip, e);
+            tracing::error!("Failed to stop session {} on {}: {}", session_id, host, e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
 
@@ -339,7 +349,7 @@ pub async fn terminate_session(
 
         Ok(Json(serde_json::json!({
             "success": true,
-            "message": format!("Session {} terminated on {}", session_id, ip)
+            "message": format!("Session {} terminated on {}", session_id, host)
         })))
     } else {
         Err(StatusCode::NOT_FOUND)
@@ -379,18 +389,12 @@ pub async fn get_applications(
     State(state): State<Arc<AppState>>,
     Path(ip): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let mut port = 22;
-    {
-        let hosts = state.hosts.read().await;
-        if let Some(h) = hosts.iter().find(|h| h.ip == ip) {
-            port = h.port;
-        }
-    }
+    let (host, port) = state.resolve_host_port(&ip, None).await;
 
     match state.discovery.get_applications_for_host(&ip, port).await {
         Ok(apps) => Ok(Json(apps)),
         Err(e) => {
-            tracing::error!("Failed to get applications for host {}: {}", ip, e);
+            tracing::error!("Failed to get applications for host {}: {}", host, e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -420,17 +424,11 @@ pub async fn launch_application(
     };
 
     if let Some((host_ip, display_id)) = session_info {
-        let mut port = 22;
-        {
-            let hosts = state.hosts.read().await;
-            if let Some(h) = hosts.iter().find(|h| h.ip == host_ip) {
-                port = h.port;
-            }
-        }
+        let (host, port) = state.resolve_host_port(&host_ip, None).await;
 
         match state
             .discovery
-            .launch_application_on_host(&host_ip, port, display_id, &payload.command)
+            .launch_application_on_host(&host, port, display_id, &payload.command)
             .await
         {
             Ok(res) => Ok(Json(res)),
@@ -500,17 +498,11 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         params.host, params.display, params.monitor
     );
 
-    let mut port = 2222;
-    {
-        let hosts = state.hosts.read().await;
-        if let Some(h) = hosts.iter().find(|h| h.ip == params.host) {
-            port = h.port;
-        }
-    }
+    let (host, port) = state.resolve_host_port(&params.host, None).await;
 
     let vnc_port = match state
         .discovery
-        .ensure_vnc_on_host(&params.host, port, params.display)
+        .ensure_vnc_on_host(&host, port, params.display)
         .await
     {
         Ok(res) => {
@@ -540,7 +532,7 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
             }
         }
         Err(e) => {
-            tracing::error!("Failed to ensure VNC on host {}: {}", params.host, e);
+            tracing::error!("Failed to ensure VNC on host {}: {}", host, e);
             let mut ws_sender = ws.split().0;
             let _ = ws_sender
                 .send(Message::Close(Some(axum::extract::ws::CloseFrame {
@@ -552,8 +544,7 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         }
     };
 
-    let (_, actual_ip) = crate::discovery::HostDiscovery::parse_ssh_target(&params.host);
-    let target_addr = format!("{}:{}", actual_ip, vnc_port);
+    let target_addr = format!("{}:{}", host, vnc_port);
     info!(
         "Connecting WebSocket proxy to VNC TCP target: {}",
         target_addr
@@ -620,10 +611,7 @@ async fn handle_vnc_socket(ws: WebSocket, params: VncQueryParams, state: Arc<App
         _ = server_to_client => {}
     }
 
-    info!(
-        "VNC WebSocket proxy connection closed for host={}",
-        params.host
-    );
+    info!("VNC WebSocket proxy connection closed for host={}", host);
 }
 
 pub async fn upload_file(
@@ -654,7 +642,7 @@ pub async fn get_system_users(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(ip): axum::extract::Path<String>,
 ) -> Result<Json<Vec<String>>, StatusCode> {
-    let port = state.discovery.get_port_for_host(&ip);
+    let (host, port) = state.resolve_host_port(&ip, None).await;
     match state.discovery.get_system_users_for_host(&ip, port).await {
         Ok(json) => {
             if let Some(users) = json.get("users").and_then(|u| u.as_array()) {
@@ -668,7 +656,7 @@ pub async fn get_system_users(
             }
         }
         Err(e) => {
-            tracing::error!("Failed to get users for host {}: {}", ip, e);
+            tracing::error!("Failed to get users for host {}: {}", host, e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -683,11 +671,11 @@ pub async fn get_metrics(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(ip): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let port = state.discovery.get_port_for_host(&ip);
+    let (host, port) = state.resolve_host_port(&ip, None).await;
     match state.discovery.get_metrics_for_host(&ip, port).await {
         Ok(metrics) => Ok(Json(metrics)),
         Err(e) => {
-            tracing::error!("Failed to get metrics for host {}: {}", ip, e);
+            tracing::error!("Failed to get metrics for host {}: {}", host, e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -698,7 +686,7 @@ pub async fn execute_power_action(
     axum::extract::Path(ip): axum::extract::Path<String>,
     Json(payload): Json<PowerRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let port = state.discovery.get_port_for_host(&ip);
+    let (host, port) = state.resolve_host_port(&ip, None).await;
     match state
         .discovery
         .execute_power_action_on_host(&ip, port, &payload.action)
@@ -709,7 +697,7 @@ pub async fn execute_power_action(
             tracing::error!(
                 "Failed to execute power action {} for host {}: {}",
                 payload.action,
-                ip,
+                host,
                 e
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)

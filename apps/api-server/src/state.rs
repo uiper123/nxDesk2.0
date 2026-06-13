@@ -86,4 +86,33 @@ impl AppState {
         let mut logs = self.logs.write().await;
         *logs = all_logs;
     }
+
+    pub async fn resolve_host_port(
+        &self,
+        host_input: &str,
+        requested_port: Option<u16>,
+    ) -> (String, u16) {
+        let target = self
+            .discovery
+            .normalize_remote_target(host_input, requested_port, None);
+        if requested_port.filter(|p| *p != 0).is_some() {
+            return (target.host, target.port);
+        }
+
+        let hosts = self.hosts.read().await;
+        let port = hosts
+            .iter()
+            .find(|h| h.ip == target.host)
+            .map(|h| h.port)
+            .filter(|p| *p != 0)
+            .unwrap_or_else(|| {
+                if target.port != 0 {
+                    target.port
+                } else {
+                    self.discovery.get_port_for_host(host_input)
+                }
+            });
+
+        (target.host, port)
+    }
 }
