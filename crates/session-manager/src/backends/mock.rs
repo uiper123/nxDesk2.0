@@ -1,4 +1,4 @@
-use crate::traits::{SessionBackend, UserSession};
+use crate::traits::{SessionBackend, SessionProvisioning, UserSession};
 use anyhow::Result;
 use shared_types::{SessionKind, SessionStatus};
 
@@ -50,7 +50,11 @@ impl UserSession for MockUserSession {
 pub struct MockSessionBackend;
 
 impl SessionBackend for MockSessionBackend {
-    fn create_session(&self, username: &str, display_id: u8) -> Result<Box<dyn UserSession>> {
-        Ok(Box::new(MockUserSession::new(username, display_id)))
+    fn provisioning(&self, _username: &str) -> SessionProvisioning {
+        SessionProvisioning::VirtualDesktop
+    }
+
+    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>> {
+        Ok(Box::new(MockUserSession::new(username, display_id.unwrap_or(10))))
     }
 }
