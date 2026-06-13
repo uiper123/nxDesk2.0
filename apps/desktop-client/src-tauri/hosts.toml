@@ -1,8 +1,3 @@
 # Конфигурация хостов TTGTiSO-Desk
 # Список серверов, на которых развёрнут server-agent
 
-[[hosts]]
-name = "localhost-test"
-ip = "kylie@127.0.0.1"
-ssh_port = 2223
-

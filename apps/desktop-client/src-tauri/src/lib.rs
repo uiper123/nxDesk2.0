@@ -117,6 +117,22 @@ fn ensure_api_server_running() {
         return;
     }
 
+    if std::env::var("TTGTISO_HOSTS_TOML_PATH").is_err() {
+        if let Ok(mut dir) = std::env::current_dir() {
+            if dir.ends_with("src-tauri") {
+                dir.pop();
+            }
+            if dir.ends_with("desktop-client") {
+                dir.pop();
+            }
+            if dir.ends_with("apps") {
+                dir.pop();
+            }
+            let hosts_path = dir.join("hosts.toml");
+            std::env::set_var("TTGTISO_HOSTS_TOML_PATH", hosts_path);
+        }
+    }
+
     tauri::async_runtime::spawn(async move {
         if let Err(e) = api_server::run().await {
             eprintln!("api-server stopped: {e}");

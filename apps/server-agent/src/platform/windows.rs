@@ -75,11 +75,39 @@ fn uptime_seconds() -> u64 {
 /// remote-desktop model targets the active console session.
 pub fn list_users() -> Value {
     let mut users = Vec::new();
-    if let Ok(user) = std::env::var("USERNAME") {
-        if !user.is_empty() {
-            users.push(user);
+
+    // Try executing `query user` or `quser` (standard utilities on Windows)
+    let query_res = std::process::Command::new("query")
+        .arg("user")
+        .output()
+        .or_else(|_| std::process::Command::new("quser").output());
+
+    if let Ok(output) = query_res {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines().skip(1) {
+                // Remove the active session indicator '>' if present
+                let clean_line = line.trim().trim_start_matches('>');
+                let mut parts = clean_line.split_whitespace();
+                if let Some(username) = parts.next() {
+                    let u = username.to_string();
+                    if !u.is_empty() && u != "SYSTEM" && !u.ends_with('$') && !users.contains(&u) {
+                        users.push(u);
+                    }
+                }
+            }
         }
     }
+
+    // Fall back to USERNAME environment variable if query user failed or returned nothing
+    if users.is_empty() {
+        if let Ok(user) = std::env::var("USERNAME") {
+            if !user.is_empty() && user != "SYSTEM" && !user.ends_with('$') {
+                users.push(user);
+            }
+        }
+    }
+
     json!({ "users": users })
 }
 
@@ -166,10 +194,14 @@ pub fn launch_application(_display_id: u32, exec_cmd: &str) -> Value {
 /// pipeline rather than an external VNC server, so there is nothing to start.
 /// The agent's TCP port is the single streaming endpoint.
 pub fn ensure_vnc(_display_id: u32) -> Value {
+    let port = config::load_config()
+        .map(|c| c.port)
+        .unwrap_or(2222);
     json!({
         "success": true,
         "message": "Windows agent streams directly over its TCP port; no external VNC server is required.",
-        "native_streaming": true
+        "native_streaming": true,
+        "port": port
     })
 }
 

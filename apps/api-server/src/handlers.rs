@@ -221,7 +221,7 @@ fn rewrite_hosts_toml(hosts: &[Host]) {
         }
         text.push('\n');
     }
-    let _ = std::fs::write("hosts.toml", text);
+    let _ = std::fs::write(crate::discovery::HostDiscovery::hosts_toml_path(), text);
 }
 
 pub async fn add_host(
@@ -231,12 +231,20 @@ pub async fn add_host(
     let target = state
         .discovery
         .normalize_remote_target(&payload.ip, Some(payload.port), None);
-    payload.ip = target.host;
+    payload.ip = if let Some(username) = &target.username {
+        format!("{}@{}", username, target.host)
+    } else {
+        target.host.clone()
+    };
     payload.port = target.port;
 
     let mut hosts = state.hosts.write().await;
 
-    if hosts.iter().any(|h| h.ip == payload.ip) {
+    let (_, payload_host) = crate::discovery::HostDiscovery::parse_ssh_target(&payload.ip);
+    if hosts.iter().any(|h| {
+        let (_, existing_host) = crate::discovery::HostDiscovery::parse_ssh_target(&h.ip);
+        existing_host == payload_host
+    }) {
         return Ok(Json(serde_json::json!({
             "success": false,
             "message": "Host with this IP already exists in registry"
@@ -265,11 +273,18 @@ pub async fn update_host(
     let target = state
         .discovery
         .normalize_remote_target(&payload.ip, Some(payload.port), None);
-    payload.ip = target.host;
+    payload.ip = if let Some(username) = &target.username {
+        format!("{}@{}", username, target.host)
+    } else {
+        target.host.clone()
+    };
     payload.port = target.port;
 
     let mut hosts = state.hosts.write().await;
-    let Some(host) = hosts.iter_mut().find(|host| host.ip == lookup) else {
+    let Some(host) = hosts.iter_mut().find(|host| {
+        let (_, h_host) = crate::discovery::HostDiscovery::parse_ssh_target(&host.ip);
+        h_host == lookup
+    }) else {
         return Err(StatusCode::NOT_FOUND);
     };
 

@@ -78,6 +78,14 @@ impl HostDiscovery {
     const LOCAL_AGENT_SOCKET: &'static str = "/var/lib/ttgtiso-desk/agent.sock";
     const DEFAULT_SSH_PORT: u16 = 22;
 
+    pub fn hosts_toml_path() -> std::path::PathBuf {
+        if let Ok(path) = std::env::var("TTGTISO_HOSTS_TOML_PATH") {
+            std::path::PathBuf::from(path)
+        } else {
+            std::path::PathBuf::from("hosts.toml")
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             config_hosts: Self::load_config_hosts(),
@@ -86,7 +94,7 @@ impl HostDiscovery {
 
     /// Загрузка хостов из конфигурационного файла
     fn load_config_hosts() -> Vec<HostConfig> {
-        if let Ok(content) = std::fs::read_to_string("hosts.toml") {
+        if let Ok(content) = std::fs::read_to_string(Self::hosts_toml_path()) {
             if let Ok(config) = toml::from_str::<HostsConfig>(&content) {
                 return config.hosts;
             }
@@ -136,7 +144,8 @@ impl HostDiscovery {
     }
 
     async fn check_local_agent_health(&self) -> bool {
-        match self.get_agent_status("127.0.0.1", 0).await {
+        let target = self.normalize_remote_target("127.0.0.1", Some(0), None);
+        match self.get_agent_status(&target).await {
             Ok(status) if status.get("status").and_then(|v| v.as_str()) == Some("OK") => {
                 info!("Local server-agent is reachable via Unix socket");
                 true
@@ -235,21 +244,27 @@ impl HostDiscovery {
     }
 
     /// Проверка доступности хоста: локально через UDS агента, удаленно по TCP порту
-    async fn check_host_availability(&self, ip: &str, port: u16) -> bool {
-        let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+    async fn check_host_availability(&self, target: &RemoteTarget) -> bool {
+        info!("check_host_availability: resolved: host={}, port={}, username={:?}", target.host, target.port, target.username);
+        if Self::is_local_host(&target.host) && target.username.is_none() {
+            info!("check_host_availability: local host without username, checking local UDS status");
             return self.check_local_agent_health().await;
         }
 
         let addr = format!("{}:{}", target.host, target.port);
+        info!("check_host_availability: remote host, checking TCP connectivity to {}", addr);
 
         match timeout(Self::discovery_timeout(), TcpStream::connect(&addr)).await {
             Ok(Ok(_)) => {
-                info!("Host {} is reachable", addr);
+                info!("Host {} is reachable via TCP", addr);
                 true
             }
-            Ok(Err(_)) | Err(_) => {
-                warn!("Host {} is unreachable", addr);
+            Ok(Err(e)) => {
+                warn!("Host {} is unreachable: {}", addr, e);
+                false
+            }
+            Err(_) => {
+                warn!("Host {} connection timed out", addr);
                 false
             }
         }
@@ -262,14 +277,27 @@ impl HostDiscovery {
         operation: SshOperation,
         duration: Duration,
     ) -> Result<std::process::Output, anyhow::Error> {
+        info!("run_command_with_timeout: starting command for {:?}: {:?}", operation, cmd);
         match timeout(duration, cmd.output()).await {
-            Ok(Ok(output)) => Ok(output),
-            Ok(Err(e)) => Err(anyhow::anyhow!("Command execution failed: {}", e)),
-            Err(_) => Err(anyhow::anyhow!(
-                "SSH command timed out after {} seconds while running operation {}.",
-                duration.as_secs(),
-                operation.as_str()
-            )),
+            Ok(Ok(output)) => {
+                info!("run_command_with_timeout: command for {:?} finished with status: {}", operation, output.status);
+                if !output.status.success() {
+                    warn!("run_command_with_timeout: command stderr: {}", String::from_utf8_lossy(&output.stderr));
+                }
+                Ok(output)
+            }
+            Ok(Err(e)) => {
+                warn!("run_command_with_timeout: command failed to start: {}", e);
+                Err(anyhow::anyhow!("Command execution failed: {}", e))
+            }
+            Err(_) => {
+                warn!("run_command_with_timeout: command timed out after {}s", duration.as_secs());
+                Err(anyhow::anyhow!(
+                    "SSH command timed out after {} seconds while running operation {}.",
+                    duration.as_secs(),
+                    operation.as_str()
+                ))
+            }
         }
     }
 
@@ -289,25 +317,32 @@ impl HostDiscovery {
             .unwrap_or_else(|| Duration::from_secs(10))
     }
 
+    fn agent_command_payload(&self, command: &str) -> String {
+        let sock_path = Self::LOCAL_AGENT_SOCKET;
+        format!(
+            "uname >/dev/null 2>&1 && (echo '{cmd}' | socat - UNIX-CONNECT:{sock} || echo '{cmd}' | nc -U {sock}) \
+             || powershell -Command \"$c = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 2223); $s = $c.GetStream(); $w = New-Object System.IO.StreamWriter($s); $w.WriteLine('{cmd}'); $w.Flush(); $r = New-Object System.IO.StreamReader($s); $r.ReadToEnd(); $c.Close()\"",
+            cmd = command,
+            sock = sock_path
+        )
+    }
+
     /// Получение статуса агента (активные сессии и т.д.) через UDS по SSH или локально
     async fn get_agent_status(
         &self,
-        ip: &str,
-        port: u16,
+        target: &RemoteTarget,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        info!("get_agent_status: resolved: host={}, port={}, username={:?}", target.host, target.port, target.username);
+        if Self::is_local_host(&target.host) && target.username.is_none() {
+            info!("get_agent_status: local host without username, querying local UDS status");
             let json_str = self.run_local_agent_command("status").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         }
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
-        let mut cmd = self.create_ssh_command(SshOperation::GetStatus, &target);
-        cmd.arg(format!(
-            "echo 'status' | socat - UNIX-CONNECT:{} || echo 'status' | nc -U {}",
-            sock_path, sock_path
-        ));
+        info!("get_agent_status: remote host or has username, querying via SSH");
+        let mut cmd = self.create_ssh_command(SshOperation::GetStatus, target);
+        cmd.arg(self.agent_command_payload("status"));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::GetStatus, Self::ssh_timeout())
@@ -315,12 +350,15 @@ impl HostDiscovery {
 
         if output.status.success() {
             let json_str = String::from_utf8_lossy(&output.stdout);
+            info!("get_agent_status: status request succeeded: {}", json_str);
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             Ok(json_val)
         } else {
+            let err_msg = String::from_utf8_lossy(&output.stderr);
+            warn!("get_agent_status: status request failed: {}", err_msg);
             anyhow::bail!(
                 "{}",
-                Self::format_ssh_error(SshOperation::GetStatus, &target, &output.stderr)
+                Self::format_ssh_error(SshOperation::GetStatus, target, &output.stderr)
             )
         }
     }
@@ -332,15 +370,11 @@ impl HostDiscovery {
         port: u16,
     ) -> Result<Vec<crate::models::ActiveSession>, anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
-        let json_str = if Self::is_local_host(&target.host) {
+        let json_str = if Self::is_local_host(&target.host) && target.username.is_none() {
             self.run_local_agent_command("sessions").await?
         } else {
-            let sock_path = Self::LOCAL_AGENT_SOCKET;
             let mut c = self.create_ssh_command(SshOperation::GetSessions, &target);
-            c.arg(format!(
-                "echo 'sessions' | socat - UNIX-CONNECT:{} || echo 'sessions' | nc -U {}",
-                sock_path, sock_path
-            ));
+            c.arg(self.agent_command_payload("sessions"));
             let output = self
                 .run_command_with_timeout(c, SshOperation::GetSessions, Self::ssh_timeout())
                 .await?;
@@ -394,7 +428,7 @@ impl HostDiscovery {
     ) -> Result<(), anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
         let is_online = self
-            .check_host_availability(&target.host, target.port)
+            .check_host_availability(&target)
             .await;
         if !is_online {
             anyhow::bail!(
@@ -404,10 +438,9 @@ impl HostDiscovery {
             );
         }
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("stop_session {}", session_id);
 
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             if json_val
@@ -426,10 +459,7 @@ impl HostDiscovery {
         };
 
         let mut cmd = self.create_ssh_command(SshOperation::StopSession, &target);
-        cmd.arg(format!(
-            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-            cmd_payload, sock_path, cmd_payload, sock_path
-        ));
+        cmd.arg(self.agent_command_payload(&cmd_payload));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::StopSession, Self::ssh_timeout())
@@ -483,7 +513,7 @@ impl HostDiscovery {
     fn get_ssh_key_path(&self, ip: &str) -> Option<String> {
         let mut key_path = None;
         let (_, target_ip) = Self::parse_ssh_target(ip);
-        if let Ok(content) = std::fs::read_to_string("hosts.toml") {
+        if let Ok(content) = std::fs::read_to_string(Self::hosts_toml_path()) {
             if let Ok(config) = toml::from_str::<HostsConfig>(&content) {
                 for c in config.hosts {
                     let (_, config_ip) = Self::parse_ssh_target(&c.ip);
@@ -640,7 +670,7 @@ impl HostDiscovery {
         use anyhow::Context;
         let target = self.normalize_remote_target(ip, Some(port), Some(username));
         let is_online = self
-            .check_host_availability(&target.host, target.port)
+            .check_host_availability(&target)
             .await;
         if !is_online {
             anyhow::bail!(
@@ -650,10 +680,9 @@ impl HostDiscovery {
             );
         }
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("start_session {}", username);
 
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             if json_val
@@ -691,10 +720,7 @@ impl HostDiscovery {
         };
 
         let mut cmd = self.create_ssh_command(SshOperation::StartSession, &target);
-        cmd.arg(format!(
-            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-            cmd_payload, sock_path, cmd_payload, sock_path
-        ));
+        cmd.arg(self.agent_command_payload(&cmd_payload));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::StartSession, Self::ssh_timeout())
@@ -750,15 +776,18 @@ impl HostDiscovery {
         port: u16,
         lines: usize,
     ) -> Result<Vec<crate::models::LogEntry>, anyhow::Error> {
-        let log_path = "/var/log/ttgtiso-desk/audit.log";
         let target = self.normalize_remote_target(ip, Some(port), None);
-        let cmd = if Self::is_local_host(&target.host) {
+        let cmd = if Self::is_local_host(&target.host) && target.username.is_none() {
+            let log_path = "/var/log/ttgtiso-desk/audit.log";
             let mut c = Command::new("sh");
             c.arg("-c").arg(format!("tail -n {} {}", lines, log_path));
             c
         } else {
             let mut c = self.create_ssh_command(SshOperation::GetLogs, &target);
-            c.arg(format!("tail -n {} {}", lines, log_path));
+            c.arg(format!(
+                "uname >/dev/null 2>&1 && tail -n {lines} /var/log/ttgtiso-desk/audit.log || powershell -Command \"Get-Content -Tail {lines} -Path ($env:ProgramData + '\\TTGTiSO-Desk\\logs\\audit.log')\"",
+                lines = lines
+            ));
             c
         };
 
@@ -807,8 +836,9 @@ impl HostDiscovery {
         let mut hosts = Vec::new();
 
         for (id_counter, config) in (1..).zip(self.config_hosts.iter()) {
+            let target = self.normalize_remote_target(&config.ip, Some(config.ssh_port), None);
             let is_online = self
-                .check_host_availability(&config.ip, config.ssh_port)
+                .check_host_availability(&target)
                 .await;
 
             let mut active_sessions = 0;
@@ -824,7 +854,7 @@ impl HostDiscovery {
             if is_online {
                 match timeout(
                     Duration::from_secs(3),
-                    self.get_agent_status(&config.ip, config.ssh_port),
+                    self.get_agent_status(&target),
                 )
                 .await
                 {
@@ -858,8 +888,8 @@ impl HostDiscovery {
                     }
                 }
                 if os == "Unknown / Offline" || os.is_empty() {
-                    let (_, actual_ip) = Self::parse_ssh_target(&config.ip);
-                    if Self::is_local_host(actual_ip) {
+                    let (username, actual_ip) = Self::parse_ssh_target(&config.ip);
+                    if Self::is_local_host(actual_ip) && username.is_none() {
                         os = Self::detect_local_os();
                     } else {
                         os = "Linux".to_string();
@@ -867,11 +897,14 @@ impl HostDiscovery {
                 }
             }
 
-            let target = self.normalize_remote_target(&config.ip, Some(config.ssh_port), None);
             hosts.push(Host {
                 id: id_counter.to_string(),
                 name: config.name.clone(),
-                ip: target.host,
+                ip: if let Some(username) = &target.username {
+                    format!("{}@{}", username, target.host)
+                } else {
+                    target.host
+                },
                 port: target.port,
                 status,
                 active_sessions,
@@ -890,10 +923,14 @@ impl HostDiscovery {
     pub async fn refresh_host_status(&self, hosts: &mut [Host]) {
         for host in hosts.iter_mut() {
             let target = self.normalize_remote_target(&host.ip, Some(host.port), None);
-            host.ip = target.host.clone();
+            host.ip = if let Some(username) = &target.username {
+                format!("{}@{}", username, target.host)
+            } else {
+                target.host.clone()
+            };
             host.port = target.port;
             let is_online = self
-                .check_host_availability(&target.host, target.port)
+                .check_host_availability(&target)
                 .await;
 
             host.status = if is_online {
@@ -904,7 +941,7 @@ impl HostDiscovery {
 
             let mut os = "Unknown / Offline".to_string();
             if is_online {
-                if let Ok(agent_status) = self.get_agent_status(&target.host, target.port).await {
+                if let Ok(agent_status) = self.get_agent_status(&target).await {
                     if let Some(_sessions) =
                         agent_status.get("active_sessions").and_then(|s| s.as_u64())
                     {
@@ -923,8 +960,8 @@ impl HostDiscovery {
                     }
                 }
                 if os == "Unknown / Offline" || os.is_empty() {
-                    let (_, actual_ip) = Self::parse_ssh_target(&host.ip);
-                    if Self::is_local_host(actual_ip) {
+                    let (username, actual_ip) = Self::parse_ssh_target(&host.ip);
+                    if Self::is_local_host(actual_ip) && username.is_none() {
                         os = Self::detect_local_os();
                     } else {
                         os = "Linux".to_string();
@@ -943,18 +980,14 @@ impl HostDiscovery {
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command("applications").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let mut cmd = self.create_ssh_command(SshOperation::GetApplications, &target);
-        cmd.arg(format!(
-            "echo 'applications' | socat - UNIX-CONNECT:{} || echo 'applications' | nc -U {}",
-            sock_path, sock_path
-        ));
+        cmd.arg(self.agent_command_payload("applications"));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::GetApplications, Self::ssh_timeout())
@@ -978,18 +1011,14 @@ impl HostDiscovery {
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command("users").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let mut cmd = self.create_ssh_command(SshOperation::GetUsers, &target);
-        cmd.arg(format!(
-            "echo 'users' | socat - UNIX-CONNECT:{} || echo 'users' | nc -U {}",
-            sock_path, sock_path
-        ));
+        cmd.arg(self.agent_command_payload("users"));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::GetUsers, Self::ssh_timeout())
@@ -1013,18 +1042,14 @@ impl HostDiscovery {
         port: u16,
     ) -> Result<serde_json::Value, anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command("metrics").await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let mut cmd = self.create_ssh_command(SshOperation::GetMetrics, &target);
-        cmd.arg(format!(
-            "echo 'metrics' | socat - UNIX-CONNECT:{} || echo 'metrics' | nc -U {}",
-            sock_path, sock_path
-        ));
+        cmd.arg(self.agent_command_payload("metrics"));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::GetMetrics, Self::ssh_timeout())
@@ -1050,18 +1075,14 @@ impl HostDiscovery {
     ) -> Result<serde_json::Value, anyhow::Error> {
         let cmd_payload = format!("power {}", action);
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let mut cmd = self.create_ssh_command(SshOperation::Power, &target);
-        cmd.arg(format!(
-            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-            cmd_payload, sock_path, cmd_payload, sock_path
-        ));
+        cmd.arg(self.agent_command_payload(&cmd_payload));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::Power, Self::ssh_timeout())
@@ -1086,21 +1107,17 @@ impl HostDiscovery {
         display_id: u32,
         command: &str,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("launch {} {}", display_id, command);
 
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
         let mut cmd = self.create_ssh_command(SshOperation::LaunchApplication, &target);
-        cmd.arg(format!(
-            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-            cmd_payload, sock_path, cmd_payload, sock_path
-        ));
+        cmd.arg(self.agent_command_payload(&cmd_payload));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::LaunchApplication, Self::ssh_timeout())
@@ -1124,21 +1141,17 @@ impl HostDiscovery {
         port: u16,
         display_id: u32,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        let sock_path = Self::LOCAL_AGENT_SOCKET;
         let cmd_payload = format!("ensure_vnc {}", display_id);
 
         let target = self.normalize_remote_target(ip, Some(port), None);
-        if Self::is_local_host(&target.host) {
+        if Self::is_local_host(&target.host) && target.username.is_none() {
             let json_str = self.run_local_agent_command(&cmd_payload).await?;
             let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
             return Ok(json_val);
         };
 
         let mut cmd = self.create_ssh_command(SshOperation::EnsureVnc, &target);
-        cmd.arg(format!(
-            "echo '{}' | socat - UNIX-CONNECT:{} || echo '{}' | nc -U {}",
-            cmd_payload, sock_path, cmd_payload, sock_path
-        ));
+        cmd.arg(self.agent_command_payload(&cmd_payload));
 
         let output = self
             .run_command_with_timeout(cmd, SshOperation::EnsureVnc, Self::ssh_timeout())

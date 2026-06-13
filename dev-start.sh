@@ -5,6 +5,9 @@
 
 set -e
 
+# Установка пути к hosts.toml для предотвращения бесконечных циклов пересборки Tauri
+export TTGTISO_HOSTS_TOML_PATH="$(pwd)/hosts.toml"
+
 echo "🚀 Starting TTGTiSO-Desk Development Environment..."
 
 # Цвета для вывода

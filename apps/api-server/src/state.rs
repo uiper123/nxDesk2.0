@@ -102,7 +102,10 @@ impl AppState {
         let hosts = self.hosts.read().await;
         let port = hosts
             .iter()
-            .find(|h| h.ip == target.host)
+            .find(|h| {
+                let (_, h_host) = HostDiscovery::parse_ssh_target(&h.ip);
+                h_host == target.host
+            })
             .map(|h| h.port)
             .filter(|p| *p != 0)
             .unwrap_or_else(|| {
