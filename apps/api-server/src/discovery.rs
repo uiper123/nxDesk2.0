@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpStream, UnixStream};
+use tokio::net::TcpStream;
+#[cfg(unix)]
+use tokio::net::UnixStream;
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 use tracing::{info, warn};
@@ -99,6 +101,7 @@ impl HostDiscovery {
         }
     }
 
+    #[cfg(unix)]
     async fn run_local_agent_command(&self, command: &str) -> Result<String, anyhow::Error> {
         let mut stream = timeout(
             Duration::from_secs(2),
@@ -118,6 +121,13 @@ impl HostDiscovery {
             })??;
 
         Ok(response)
+    }
+
+    #[cfg(not(unix))]
+    async fn run_local_agent_command(&self, _command: &str) -> Result<String, anyhow::Error> {
+        Err(anyhow::anyhow!(
+            "Unix sockets are not supported on this platform"
+        ))
     }
 
     /// Проверка доступности хоста: локально через UDS агента, удаленно по TCP порту
