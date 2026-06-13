@@ -169,17 +169,17 @@ if ($BinaryPath -ne "") {
 if (-not (Test-Path $ConfigFile)) {
     Write-Host "Writing default config to $ConfigFile"
     $configLines = @(
-        "# TTGTiSO-Desk Remote Desktop Server Agent Configuration (Windows)",
-        "bind_address = `"0.0.0.0`"",
-        "port = 2222",
-        "",
-        "[session_limits]",
-        "max_concurrent_sessions = 4",
-        "session_timeout_seconds = 3600",
-        "",
-        "[security_policy]",
-        "allow_password_auth = true",
-        "enable_audit_logs = true"
+        '# TTGTiSO-Desk Remote Desktop Server Agent Configuration (Windows)',
+        'bind_address = "0.0.0.0"',
+        'port = 2222',
+        '',
+        '[session_limits]',
+        'max_concurrent_sessions = 4',
+        'session_timeout_seconds = 3600',
+        '',
+        '[security_policy]',
+        'allow_password_auth = true',
+        'enable_audit_logs = true'
     )
     $configLines | Set-Content -Path $ConfigFile -Encoding UTF8
 }
