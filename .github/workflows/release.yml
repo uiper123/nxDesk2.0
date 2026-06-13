@@ -250,6 +250,13 @@ jobs:
 
       - name: Build Package
         run: |
+          # Dynamically ensure PKGBUILD has the correct version matching the release tag (removing 'v' prefix)
+          VERSION=$(echo "${{ env.RELEASE_TAG }}" | sed 's/^v//')
+          sed -i -E "s/^pkgver=[0-9]+\.[0-9]+\.[0-9]+/pkgver=$VERSION/" PKGBUILD
+          
+          # Fix ownership again in case root edited PKGBUILD
+          chown builder:builder PKGBUILD
+          
           su builder -c "rustup default stable"
           su builder -c "makepkg -s --noconfirm"
 

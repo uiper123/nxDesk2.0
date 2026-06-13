@@ -57,6 +57,12 @@ for manifest in apps/desktop-client/src-tauri/Cargo.toml apps/server-agent/Cargo
   echo "  updated $manifest"
 done
 
+# PKGBUILD
+if [ -f PKGBUILD ]; then
+  sed -i -E "s/^pkgver=[0-9]+\.[0-9]+\.[0-9]+/pkgver=${NEW_VERSION}/" PKGBUILD
+  echo "  updated PKGBUILD"
+fi
+
 # Refresh Cargo.lock entries for the bumped packages
 if command -v cargo >/dev/null 2>&1; then
   cargo update -p server-agent -p appsdesktop-client --precise "$NEW_VERSION" 2>/dev/null || \
@@ -68,6 +74,7 @@ if [ "$NO_GIT" = false ]; then
           apps/desktop-client/src-tauri/tauri.conf.json \
           apps/desktop-client/src-tauri/Cargo.toml \
           apps/server-agent/Cargo.toml \
+          PKGBUILD \
           Cargo.lock 2>/dev/null || true
   git commit -m "chore: bump version to v${NEW_VERSION}"
   git tag "v${NEW_VERSION}"
