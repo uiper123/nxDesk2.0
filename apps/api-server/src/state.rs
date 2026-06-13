@@ -43,7 +43,11 @@ impl AppState {
         for host in hosts.iter_mut() {
             if matches!(host.status, HostStatus::Online) {
                 let port = host.port;
-                match self.discovery.get_active_sessions_for_host(&host.ip, port).await {
+                match self
+                    .discovery
+                    .get_active_sessions_for_host(&host.ip, port)
+                    .await
+                {
                     Ok(mut host_sessions) => {
                         host.active_sessions = host_sessions.len() as u32;
                         host.status = if host_sessions.is_empty() {

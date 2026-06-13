@@ -206,13 +206,22 @@ fn rewrite_hosts_toml(hosts: &[Host]) {
         text.push_str(&format!("ip = \"{}\"\n", host.ip));
         text.push_str(&format!("ssh_port = {}\n", host.port));
         if let Some(key) = &host.ssh_public_key {
-            text.push_str(&format!("ssh_public_key = \"{}\"\n", key.replace('"', "\\\"")));
+            text.push_str(&format!(
+                "ssh_public_key = \"{}\"\n",
+                key.replace('"', "\\\"")
+            ));
         }
         if let Some(path) = &host.ssh_public_key_path {
-            text.push_str(&format!("ssh_public_key_path = \"{}\"\n", path.replace('"', "\\\"")));
+            text.push_str(&format!(
+                "ssh_public_key_path = \"{}\"\n",
+                path.replace('"', "\\\"")
+            ));
         }
         if let Some(path) = &host.ssh_private_key_path {
-            text.push_str(&format!("ssh_private_key_path = \"{}\"\n", path.replace('"', "\\\"")));
+            text.push_str(&format!(
+                "ssh_private_key_path = \"{}\"\n",
+                path.replace('"', "\\\"")
+            ));
         }
         text.push('\n');
     }
@@ -296,7 +305,11 @@ pub async fn terminate_session(
                 port = h.port;
             }
         }
-        if let Err(e) = state.discovery.stop_session_on_host(&ip, port, &session_id).await {
+        if let Err(e) = state
+            .discovery
+            .stop_session_on_host(&ip, port, &session_id)
+            .await
+        {
             tracing::error!("Failed to stop session {} on {}: {}", session_id, ip, e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }

@@ -113,7 +113,9 @@ impl HostDiscovery {
         let mut response = String::new();
         timeout(Duration::from_secs(4), stream.read_to_string(&mut response))
             .await
-            .map_err(|_| anyhow::anyhow!("Timed out reading from {}", Self::LOCAL_AGENT_SOCKET))??;
+            .map_err(|_| {
+                anyhow::anyhow!("Timed out reading from {}", Self::LOCAL_AGENT_SOCKET)
+            })??;
 
         Ok(response)
     }
