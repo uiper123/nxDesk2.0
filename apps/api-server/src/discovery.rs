@@ -245,14 +245,22 @@ impl HostDiscovery {
 
     /// Проверка доступности хоста: локально через UDS агента, удаленно по TCP порту
     async fn check_host_availability(&self, target: &RemoteTarget) -> bool {
-        info!("check_host_availability: resolved: host={}, port={}, username={:?}", target.host, target.port, target.username);
+        info!(
+            "check_host_availability: resolved: host={}, port={}, username={:?}",
+            target.host, target.port, target.username
+        );
         if Self::is_local_host(&target.host) && target.username.is_none() {
-            info!("check_host_availability: local host without username, checking local UDS status");
+            info!(
+                "check_host_availability: local host without username, checking local UDS status"
+            );
             return self.check_local_agent_health().await;
         }
 
         let addr = format!("{}:{}", target.host, target.port);
-        info!("check_host_availability: remote host, checking TCP connectivity to {}", addr);
+        info!(
+            "check_host_availability: remote host, checking TCP connectivity to {}",
+            addr
+        );
 
         match timeout(Self::discovery_timeout(), TcpStream::connect(&addr)).await {
             Ok(Ok(_)) => {
@@ -277,12 +285,21 @@ impl HostDiscovery {
         operation: SshOperation,
         duration: Duration,
     ) -> Result<std::process::Output, anyhow::Error> {
-        info!("run_command_with_timeout: starting command for {:?}: {:?}", operation, cmd);
+        info!(
+            "run_command_with_timeout: starting command for {:?}: {:?}",
+            operation, cmd
+        );
         match timeout(duration, cmd.output()).await {
             Ok(Ok(output)) => {
-                info!("run_command_with_timeout: command for {:?} finished with status: {}", operation, output.status);
+                info!(
+                    "run_command_with_timeout: command for {:?} finished with status: {}",
+                    operation, output.status
+                );
                 if !output.status.success() {
-                    warn!("run_command_with_timeout: command stderr: {}", String::from_utf8_lossy(&output.stderr));
+                    warn!(
+                        "run_command_with_timeout: command stderr: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
                 }
                 Ok(output)
             }
@@ -291,7 +308,10 @@ impl HostDiscovery {
                 Err(anyhow::anyhow!("Command execution failed: {}", e))
             }
             Err(_) => {
-                warn!("run_command_with_timeout: command timed out after {}s", duration.as_secs());
+                warn!(
+                    "run_command_with_timeout: command timed out after {}s",
+                    duration.as_secs()
+                );
                 Err(anyhow::anyhow!(
                     "SSH command timed out after {} seconds while running operation {}.",
                     duration.as_secs(),
@@ -332,7 +352,10 @@ impl HostDiscovery {
         &self,
         target: &RemoteTarget,
     ) -> Result<serde_json::Value, anyhow::Error> {
-        info!("get_agent_status: resolved: host={}, port={}, username={:?}", target.host, target.port, target.username);
+        info!(
+            "get_agent_status: resolved: host={}, port={}, username={:?}",
+            target.host, target.port, target.username
+        );
         if Self::is_local_host(&target.host) && target.username.is_none() {
             info!("get_agent_status: local host without username, querying local UDS status");
             let json_str = self.run_local_agent_command("status").await?;
@@ -427,9 +450,7 @@ impl HostDiscovery {
         session_id: &str,
     ) -> Result<(), anyhow::Error> {
         let target = self.normalize_remote_target(ip, Some(port), None);
-        let is_online = self
-            .check_host_availability(&target)
-            .await;
+        let is_online = self.check_host_availability(&target).await;
         if !is_online {
             anyhow::bail!(
                 "Host {}:{} is offline or unreachable.",
@@ -669,9 +690,7 @@ impl HostDiscovery {
     ) -> Result<crate::models::ActiveSession, anyhow::Error> {
         use anyhow::Context;
         let target = self.normalize_remote_target(ip, Some(port), Some(username));
-        let is_online = self
-            .check_host_availability(&target)
-            .await;
+        let is_online = self.check_host_availability(&target).await;
         if !is_online {
             anyhow::bail!(
                 "Host {}:{} is offline or unreachable.",
@@ -837,9 +856,7 @@ impl HostDiscovery {
 
         for (id_counter, config) in (1..).zip(self.config_hosts.iter()) {
             let target = self.normalize_remote_target(&config.ip, Some(config.ssh_port), None);
-            let is_online = self
-                .check_host_availability(&target)
-                .await;
+            let is_online = self.check_host_availability(&target).await;
 
             let mut active_sessions = 0;
             let status = if is_online {
@@ -852,12 +869,7 @@ impl HostDiscovery {
             let mut agent_res = None;
 
             if is_online {
-                match timeout(
-                    Duration::from_secs(3),
-                    self.get_agent_status(&target),
-                )
-                .await
-                {
+                match timeout(Duration::from_secs(3), self.get_agent_status(&target)).await {
                     Ok(Ok(agent_status)) => {
                         if let Some(sessions) =
                             agent_status.get("active_sessions").and_then(|s| s.as_u64())
@@ -929,9 +941,7 @@ impl HostDiscovery {
                 target.host.clone()
             };
             host.port = target.port;
-            let is_online = self
-                .check_host_availability(&target)
-                .await;
+            let is_online = self.check_host_availability(&target).await;
 
             host.status = if is_online {
                 HostStatus::Online
