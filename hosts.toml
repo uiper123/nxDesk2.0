@@ -2,17 +2,7 @@
 # Список серверов, на которых развёрнут server-agent
 
 [[hosts]]
-name = "localhost"
+name = "vladimir-hp255g8notebookpc"
 ip = "127.0.0.1"
 ssh_port = 2222
 
-[[hosts]]
-name = "hajsfa"
-ip = "192.168.0.1"
-ssh_port = 22
-
-# Добавьте свои хосты в этот файл
-# [[hosts]]
-# name = "My-Server"
-# ip = "10.0.0.50"
-# ssh_port = 22

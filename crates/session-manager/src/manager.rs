@@ -247,3 +247,8 @@ fn find_existing_display(username: &str) -> Option<u8> {
     }
     None
 }
+
+#[cfg(not(unix))]
+fn find_existing_display(_username: &str) -> Option<u8> {
+    None
+}

@@ -119,15 +119,23 @@ pub fn list_graphical_sessions() -> Vec<GraphicalSession> {
     }
 }
 
-pub fn should_attach_to_existing_session(mode: &config::ConnectionMode, session_type: &config::DesktopSessionType) -> bool {
+pub fn should_attach_to_existing_session(
+    mode: &config::ConnectionMode,
+    session_type: &config::DesktopSessionType,
+) -> bool {
     match (mode, session_type) {
         (config::ConnectionMode::Desktop, config::DesktopSessionType::Attach) => true,
-        (config::ConnectionMode::Desktop, config::DesktopSessionType::Auto) => detect_graphical_session().is_some(),
+        (config::ConnectionMode::Desktop, config::DesktopSessionType::Auto) => {
+            detect_graphical_session().is_some()
+        }
         _ => false,
     }
 }
 
-pub fn desktop_launch_candidates(mode: &config::ConnectionMode, session_type: &config::DesktopSessionType) -> Vec<String> {
+pub fn desktop_launch_candidates(
+    mode: &config::ConnectionMode,
+    session_type: &config::DesktopSessionType,
+) -> Vec<String> {
     if matches!(mode, config::ConnectionMode::App) {
         return vec!["xterm".to_string()];
     }
@@ -175,53 +183,55 @@ fn list_linux_graphical_sessions() -> Vec<GraphicalSession> {
         None
     };
 
-    let detect_xauthority = |home: &str, runtime: &str, username: &str, uid: u32| -> Option<String> {
-        let candidates = [
-            format!("{home}/.Xauthority"),
-            format!("{runtime}/Xauthority"),
-            format!("{runtime}/gdm/Xauthority"),
-            format!("/var/run/lightdm/{username}/xauthority"),
-        ];
-        for candidate in candidates {
-            if PathBuf::from(&candidate).exists() {
-                return Some(candidate);
+    let detect_xauthority =
+        |home: &str, runtime: &str, username: &str, uid: u32| -> Option<String> {
+            let candidates = [
+                format!("{home}/.Xauthority"),
+                format!("{runtime}/Xauthority"),
+                format!("{runtime}/gdm/Xauthority"),
+                format!("/var/run/lightdm/{username}/xauthority"),
+            ];
+            for candidate in candidates {
+                if PathBuf::from(&candidate).exists() {
+                    return Some(candidate);
+                }
             }
-        }
 
-        if let Ok(entries) = fs::read_dir(runtime) {
-            for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with("xauth") {
-                        return Some(entry.path().to_string_lossy().to_string());
+            if let Ok(entries) = fs::read_dir(runtime) {
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.starts_with("xauth") {
+                            return Some(entry.path().to_string_lossy().to_string());
+                        }
                     }
                 }
             }
-        }
 
-        if let Ok(proc_dir) = fs::read_dir("/proc") {
-            for entry in proc_dir.flatten() {
-                let pid_path = entry.path();
-                let comm = fs::read_to_string(pid_path.join("comm")).unwrap_or_default();
-                let comm = comm.trim();
-                if comm == "Xorg" || comm == "X" || comm == "Xwayland" {
-                    let cmdline = fs::read_to_string(pid_path.join("cmdline")).unwrap_or_default();
-                    let args: Vec<&str> = cmdline.split('\0').collect();
-                    for (idx, arg) in args.iter().enumerate() {
-                        if *arg == "-auth" {
-                            if let Some(auth_path) = args.get(idx + 1) {
-                                if PathBuf::from(auth_path).exists() {
-                                    return Some((*auth_path).to_string());
+            if let Ok(proc_dir) = fs::read_dir("/proc") {
+                for entry in proc_dir.flatten() {
+                    let pid_path = entry.path();
+                    let comm = fs::read_to_string(pid_path.join("comm")).unwrap_or_default();
+                    let comm = comm.trim();
+                    if comm == "Xorg" || comm == "X" || comm == "Xwayland" {
+                        let cmdline =
+                            fs::read_to_string(pid_path.join("cmdline")).unwrap_or_default();
+                        let args: Vec<&str> = cmdline.split('\0').collect();
+                        for (idx, arg) in args.iter().enumerate() {
+                            if *arg == "-auth" {
+                                if let Some(auth_path) = args.get(idx + 1) {
+                                    if PathBuf::from(auth_path).exists() {
+                                        return Some((*auth_path).to_string());
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        let _ = uid;
-        None
-    };
+            let _ = uid;
+            None
+        };
 
     if let Ok(entries) = fs::read_dir("/tmp/.X11-unix") {
         for entry in entries.flatten() {
@@ -229,8 +239,9 @@ fn list_linux_graphical_sessions() -> Vec<GraphicalSession> {
                 if let Some(display) = name.strip_prefix('X') {
                     if let Ok(display_id) = display.parse::<u8>() {
                         let uid = entry.metadata().map(|m| m.uid()).unwrap_or(0);
-                        let (username, home) = resolve_username(uid)
-                            .unwrap_or_else(|| (format!("user_{uid}"), format!("/home/user_{uid}")));
+                        let (username, home) = resolve_username(uid).unwrap_or_else(|| {
+                            (format!("user_{uid}"), format!("/home/user_{uid}"))
+                        });
                         let runtime = format!("/run/user/{uid}");
                         let xauthority = detect_xauthority(&home, &runtime, &username, uid);
                         let wayland_display = find_wayland_display(&runtime, display_id);
@@ -262,10 +273,14 @@ fn list_linux_graphical_sessions() -> Vec<GraphicalSession> {
                 continue;
             };
             if let Some((username, home)) = resolve_username(uid) {
-                if let Some(display_id) = find_wayland_display(&path.to_string_lossy(), 0)
-                    .and_then(|w| w.strip_prefix("wayland-").and_then(|s| s.parse::<u8>().ok()))
+                if let Some(display_id) =
+                    find_wayland_display(&path.to_string_lossy(), 0).and_then(|w| {
+                        w.strip_prefix("wayland-")
+                            .and_then(|s| s.parse::<u8>().ok())
+                    })
                 {
-                    let xauthority = detect_xauthority(&home, &path.to_string_lossy(), &username, uid);
+                    let xauthority =
+                        detect_xauthority(&home, &path.to_string_lossy(), &username, uid);
                     sessions.push(GraphicalSession {
                         username,
                         uid,
@@ -303,7 +318,7 @@ fn find_wayland_display(runtime_dir: &str, display_id: u8) -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn detect_windows_graphical_session() -> Option<GraphicalSession> {
-    use windows::Win32::System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQuerySessionInformationW, WTS_SESSION_INFOW};
+    use windows::Win32::System::RemoteDesktop::WTSGetActiveConsoleSessionId;
     let console_id = unsafe { WTSGetActiveConsoleSessionId() };
     if console_id == u32::MAX {
         return None;
@@ -334,7 +349,10 @@ mod tests {
 
     #[test]
     fn desktop_candidates_include_full_desktop_shells() {
-        let candidates = desktop_launch_candidates(&config::ConnectionMode::Desktop, &config::DesktopSessionType::Auto);
+        let candidates = desktop_launch_candidates(
+            &config::ConnectionMode::Desktop,
+            &config::DesktopSessionType::Auto,
+        );
         assert!(candidates.iter().any(|c| c == "gnome-session"));
         assert!(candidates.iter().any(|c| c == "startplasma-x11"));
     }

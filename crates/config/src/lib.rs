@@ -84,7 +84,10 @@ pub fn load_config() -> Result<AgentConfig> {
         if p.exists() {
             return load_config_from_file(p);
         }
-        tracing::warn!("TTGTISO_CONFIG set to {:?} but file does not exist", env_path);
+        tracing::warn!(
+            "TTGTISO_CONFIG set to {:?} but file does not exist",
+            env_path
+        );
     }
 
     #[cfg(target_os = "windows")]
@@ -144,7 +147,8 @@ pub fn save_config(config: &AgentConfig, path: &Path) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let contents = toml::to_string_pretty(config).context("Failed to serialize configuration to TOML")?;
+    let contents =
+        toml::to_string_pretty(config).context("Failed to serialize configuration to TOML")?;
     std::fs::write(path, contents)
         .with_context(|| format!("Failed to write config file: {:?}", path))?;
 

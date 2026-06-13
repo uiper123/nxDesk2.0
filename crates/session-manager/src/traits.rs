@@ -18,7 +18,11 @@ pub trait UserSession: Send + Sync {
 
 pub trait SessionBackend: Send + Sync {
     fn provisioning(&self, username: &str) -> SessionProvisioning;
-    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>>;
+    fn create_session(
+        &self,
+        username: &str,
+        display_id: Option<u8>,
+    ) -> Result<Box<dyn UserSession>>;
 }
 
 pub trait DisplayAllocator: Send + Sync {

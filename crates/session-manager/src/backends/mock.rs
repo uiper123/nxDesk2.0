@@ -54,7 +54,14 @@ impl SessionBackend for MockSessionBackend {
         SessionProvisioning::VirtualDesktop
     }
 
-    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>> {
-        Ok(Box::new(MockUserSession::new(username, display_id.unwrap_or(10))))
+    fn create_session(
+        &self,
+        username: &str,
+        display_id: Option<u8>,
+    ) -> Result<Box<dyn UserSession>> {
+        Ok(Box::new(MockUserSession::new(
+            username,
+            display_id.unwrap_or(10),
+        )))
     }
 }

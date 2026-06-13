@@ -94,7 +94,10 @@ impl AstraX11UserSession {
     pub fn start(username: &str, display_id: Option<u8>) -> Result<Self> {
         let display_id = display_id.unwrap_or(10);
         let display_str = format!(":{}", display_id);
-        info!("Starting desktop session for {} on {}", username, display_str);
+        info!(
+            "Starting desktop session for {} on {}",
+            username, display_str
+        );
 
         let session_kind = detect_existing_session_kind(username, display_id);
         let mut xvfb_proc = None;
@@ -102,7 +105,10 @@ impl AstraX11UserSession {
 
         match session_kind {
             SessionKind::X11 | SessionKind::Wayland => {
-                info!("Attaching to existing graphical session {} for {}", display_str, username);
+                info!(
+                    "Attaching to existing graphical session {} for {}",
+                    display_str, username
+                );
             }
             _ => {
                 let xvfb = Command::new("runuser")
@@ -136,7 +142,10 @@ impl AstraX11UserSession {
                             if !binary_exists(shell) {
                                 continue;
                             }
-                            if let Ok(child) = prepare_user_command(username, &display_str).arg(shell).spawn() {
+                            if let Ok(child) = prepare_user_command(username, &display_str)
+                                .arg(shell)
+                                .spawn()
+                            {
                                 desktop_proc = Some(child);
                                 break;
                             }
@@ -162,14 +171,30 @@ impl AstraX11UserSession {
 }
 
 impl UserSession for AstraX11UserSession {
-    fn id(&self) -> &str { &self.id }
-    fn username(&self) -> &str { &self.username }
-    fn display_id(&self) -> u8 { self.display_id }
-    fn session_kind(&self) -> SessionKind { self.session_kind }
-    fn status(&self) -> SessionStatus { self.status }
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn username(&self) -> &str {
+        &self.username
+    }
+    fn display_id(&self) -> u8 {
+        self.display_id
+    }
+    fn session_kind(&self) -> SessionKind {
+        self.session_kind
+    }
+    fn status(&self) -> SessionStatus {
+        self.status
+    }
     fn stop(&mut self) -> Result<()> {
-        if let Some(mut proc) = self.desktop_process.take() { let _ = proc.kill(); let _ = proc.wait(); }
-        if let Some(mut proc) = self.xvfb_process.take() { let _ = proc.kill(); let _ = proc.wait(); }
+        if let Some(mut proc) = self.desktop_process.take() {
+            let _ = proc.kill();
+            let _ = proc.wait();
+        }
+        if let Some(mut proc) = self.xvfb_process.take() {
+            let _ = proc.kill();
+            let _ = proc.wait();
+        }
         let _ = fs::remove_file(format!("/tmp/.X{}-lock", self.display_id));
         let _ = fs::remove_file(format!("/tmp/.X11-unix/X{}", self.display_id));
         self.status = SessionStatus::Disconnected;
@@ -196,7 +221,10 @@ impl AstraX11Backend {
 
 impl Default for AstraX11Backend {
     fn default() -> Self {
-        Self { mode: ConnectionMode::Desktop, session_type: DesktopSessionType::Auto }
+        Self {
+            mode: ConnectionMode::Desktop,
+            session_type: DesktopSessionType::Auto,
+        }
     }
 }
 
@@ -209,7 +237,11 @@ impl SessionBackend for AstraX11Backend {
         }
     }
 
-    fn create_session(&self, username: &str, display_id: Option<u8>) -> Result<Box<dyn UserSession>> {
+    fn create_session(
+        &self,
+        username: &str,
+        display_id: Option<u8>,
+    ) -> Result<Box<dyn UserSession>> {
         Ok(Box::new(AstraX11UserSession::start(username, display_id)?))
     }
 }
